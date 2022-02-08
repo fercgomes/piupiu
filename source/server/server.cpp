@@ -1,40 +1,62 @@
-#include <stdio.h>
-#include <stdlib.h>
+#pragma once
+
+#include "server.hpp"
 #include <arpa/inet.h>
 #include <iostream>
-#include <netinet/in.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <string>
 
-#define PORT 5000
-#define MAXLINE 1024
-
-// Driver code
-int main()
+Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress), bindPort(bindPort)
 {
-    const int          port   = 5000;
-    const char*        ipaddr = "127.0.0.1";
-    int                sockfd;
-    struct sockaddr_in si_me, si_other;
-    char               buffer[1024];
-    socklen_t          addr_size;
+    // Inicializar socket
+    // TODO: verificar return code do socket
+    this->socketDescr = socket(AF_INET, SOCK_DGRAM, 0);
+    std::cout << "Socket inicializado (" << this->socketDescr << ")" << std::endl;
 
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    // Setar endereço do socket
+    memset(&this->socketAddress, '\0', sizeof(this->socketAddress));
+    this->socketAddress.sin_family      = AF_INET;
+    this->socketAddress.sin_port        = htons(this->bindPort);
+    this->socketAddress.sin_addr.s_addr = inet_addr(this->bindAddress.c_str());
 
-    memset(&si_me, '\0', sizeof(si_me));
-    si_me.sin_family      = AF_INET;
-    si_me.sin_port        = htons(port);
-    si_me.sin_addr.s_addr = inet_addr(ipaddr);
+    // Fazer o bind do socket
+    // TODO: verificar return code
+    int r = bind(this->socketDescr, (struct sockaddr*)&this->socketAddress,
+                 sizeof(this->socketAddress));
 
-    bind(sockfd, (struct sockaddr*)&si_me, sizeof(si_me));
-    addr_size = sizeof(si_other);
+    std::cout << "Socket bind (" << r << ")" << std::endl;
+}
 
-    std::cout << "Running server..." << std::endl;
+void Server::Listen()
+{
+    char               buffer[this->bufferSize];
+    struct sockaddr_in incomingDataAddress;
+    socklen_t          incomingDataAddressLength;
 
-    recvfrom(sockfd, buffer, 1024, 0, (struct sockaddr*)&si_other, &addr_size);
-    printf("[+]Data Received: %s\n", buffer);
+    while (this->isListening)
+    {
+        int r = recvfrom(this->socketDescr, buffer, this->bufferSize, 0,
+                         (struct sockaddr*)&incomingDataAddress, &incomingDataAddressLength);
 
-    return 0;
+        printf("Received %d bytes from %s:%d\n", r, inet_ntoa(incomingDataAddress.sin_addr),
+               incomingDataAddress.sin_port);
+
+        if (r > 0) { printf("%s\n", buffer); }
+    }
+
+    std::cout << "Stopping listening thread" << std::endl;
+}
+
+void Server::Start()
+{
+    this->listeningThread = std::make_unique<std::thread>(&Server::Listen, this);
+
+    while (1)
+        ;
+}
+
+void Server::Stop()
+{
+    close(this->socketDescr);
+    std::cout << "Servidor finalizado." << std::endl;
 }

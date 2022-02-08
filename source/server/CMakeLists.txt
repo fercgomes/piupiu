@@ -1,4 +1,4 @@
-add_executable(Server server.cpp)
+add_executable(Server main.cpp server.cpp)
 
 # target_link_libraries(Server    PRIVATE 
 #         general  # It is possible to link some libraries for debug or optimized builds only
