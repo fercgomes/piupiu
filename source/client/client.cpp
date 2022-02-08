@@ -42,7 +42,7 @@ void Client::Listen()
     std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
 }
 
-void Client::SendMessageToServer(std::string message)
+int Client::SendMessageToServer(std::string message)
 {
     struct sockaddr_in server_addr;
     char               buffer[bufferSize];
@@ -57,10 +57,14 @@ void Client::SendMessageToServer(std::string message)
                    sizeof(server_addr));
 
     printf("Data Sent: %s [return value: %d]\n", buffer, r);
+
+    return r;
 }
 
 void Client::Shutdown()
 {
+    this->SendMessageToServer("DISCONNECT @fernando");
+
     close(this->socketDescr);
     this->isListening = false;
 
@@ -77,6 +81,10 @@ int Client::Connect()
     else
     {
         std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
+
+        int r = this->SendMessageToServer("CONNECT @fernando");
+        printf("%d\n", r);
+
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
     }
 

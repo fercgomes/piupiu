@@ -68,7 +68,7 @@ void ListeningHandler(Client* client)
         catch (const std::invalid_argument& e)
         {
             std::cerr << e.what() << std::endl;
-            exit(EXIT_FAILURE);
+            shouldExit = true;
         }
     }
 }
@@ -94,6 +94,8 @@ int main(int argc, const char** argv)
             ;
 
         inputThread.join();
+
+        client->Shutdown();
 
         // while (!shouldExit)
         // {

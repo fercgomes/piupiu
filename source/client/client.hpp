@@ -18,7 +18,7 @@ private:
     std::unique_ptr<std::thread> listeningThread = nullptr;
 
     void Listen();
-    void SendMessageToServer(std::string message);
+    int  SendMessageToServer(std::string message);
 
 public:
     Client(std::string profile, std::string serverAddress, int serverPort);
