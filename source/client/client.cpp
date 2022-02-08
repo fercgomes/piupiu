@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <thread>
+#include <unistd.h>
 
 #define BUFFER_SIZE 1024
 
@@ -37,20 +38,45 @@ void Client::Listen()
             printf("Server: %s\n", buffer);
         }
     }
+
+    std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
 }
 
-void Client::Shutdown() { std::cout << "O programa foi terminado." << std::endl; }
+void Client::SendMessageToServer(std::string message)
+{
+    struct sockaddr_in server_addr;
+    char               buffer[bufferSize];
+
+    memset(&server_addr, '\0', sizeof(server_addr));
+    server_addr.sin_family      = AF_INET;
+    server_addr.sin_port        = htons(this->serverPort);
+    server_addr.sin_addr.s_addr = inet_addr(this->serverAddress.c_str());
+
+    strcpy(buffer, message.c_str());
+    int r = sendto(this->socketDescr, buffer, bufferSize, 0, (struct sockaddr*)&server_addr,
+                   sizeof(server_addr));
+
+    printf("Data Sent: %s [return value: %d]\n", buffer, r);
+}
+
+void Client::Shutdown()
+{
+    close(this->socketDescr);
+    this->isListening = false;
+
+    std::cout << "O programa foi terminado." << std::endl;
+}
 
 int Client::Connect()
 {
     std::cout << "Conectando no servidor " << serverAddress << ":" << serverPort << " como "
               << profileHandle << std::endl;
 
-    if (this->socketDescr = socket(PF_INET, SOCK_DGRAM, 0) < 0)
+    if ((this->socketDescr = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
     { std::cerr << "Não foi possível abrir o socket." << std::endl; }
     else
     {
-        std::cout << "Socket aberto." << std::endl;
+        std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
     }
 
@@ -61,32 +87,12 @@ int Client::FollowUser(std::string profile)
 {
     std::cout << "Seguindo usuário " << profile << std::endl;
 
-    char               buffer[BUFFER_SIZE];
-    struct sockaddr_in servaddr;
-    std::stringstream  sstream;
-
-    sstream << "FOLLOW " << profile;
-    std::string message = sstream.str();
-    strcpy(buffer, message.c_str());
-    std::cout << buffer << std::endl;
-    std::cout << this->socketDescr << std::endl;
-    std::cout << this->serverAddress << std::endl;
-    std::cout << this->serverPort << std::endl;
-
-    memset(&servaddr, '\0', sizeof(servaddr));
-    servaddr.sin_family      = AF_INET;
-    servaddr.sin_port        = htons(this->serverPort);
-    servaddr.sin_addr.s_addr = inet_addr(this->serverAddress.c_str());
-
-    int r = sendto(this->socketDescr, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&servaddr,
-                   sizeof(servaddr));
-
-    std::cout << "Sent: " << r << std::endl;
+    this->SendMessageToServer("FOLLOW blah");
 
     return 0;
 }
 
-int Client::SendMessage(std::string recipient, std::string message)
+int Client::Post(std::string recipient, std::string message)
 {
     if (message.length() <= 128)
     {

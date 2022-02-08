@@ -10,19 +10,22 @@ private:
     std::string serverAddress;
     int         serverPort;
 
+    const size_t bufferSize = 1024;
+
     int socketDescr;
 
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;
 
     void Listen();
-    void Shutdown();
+    void SendMessageToServer(std::string message);
 
 public:
     Client(std::string profile, std::string serverAddress, int serverPort);
 
-    int Connect();
+    int  Connect();
+    void Shutdown();
 
     int FollowUser(std::string profile);
-    int SendMessage(std::string recipient, std::string message);
+    int Post(std::string recipient, std::string message);
 };

@@ -3,36 +3,16 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <netinet/in.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 #include "client.hpp"
 
-#define PORT 5000
-
-int test()
-{
-    const int          port   = 5000;
-    const char*        ipaddr = "127.0.0.1";
-    int                sockfd;
-    struct sockaddr_in server_addr;
-    char               buffer[1024];
-    socklen_t          addr_size;
-
-    sockfd = socket(PF_INET, SOCK_DGRAM, 0);
-    memset(&server_addr, '\0', sizeof(server_addr));
-
-    server_addr.sin_family      = AF_INET;
-    server_addr.sin_port        = htons(port);
-    server_addr.sin_addr.s_addr = inet_addr(ipaddr);
-
-    strcpy(buffer, "Hello Server\n");
-    sendto(sockfd, buffer, 1024, 0, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    printf("[+]Data Sent: %s\n", buffer);
-    return 0;
-}
+sig_atomic_t signaled = 0;
 
 std::array<std::string, 2> ParseInput(std::string input)
 {
@@ -64,6 +44,35 @@ std::array<std::string, 2> ParseInput(std::string input)
 
 void CommandHandler(Client* client, std::string command, std::string arguments) {}
 
+void ListeningHandler(Client* client)
+{
+    bool        shouldExit = false;
+    std::string commandInput;
+
+    while (!shouldExit)
+    {
+
+        // Mesmo sinalizando, o processo fica bloqueado aqui, e só sai quando ler a entrada.
+        // Uma possibilidade é colocar isso em uma thread, e escutar o SIGINT aqui, e quando
+        // pegar um SIGINT, matar a thread.
+        std::getline(std::cin, commandInput);
+
+        try
+        {
+            auto parsedInput = ParseInput(commandInput);
+            std::cout << parsedInput[0] << std::endl;
+            std::cout << parsedInput[1] << std::endl;
+
+            if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
+        }
+        catch (const std::invalid_argument& e)
+        {
+            std::cerr << e.what() << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 int main(int argc, const char** argv)
 {
     if (argc == 4)
@@ -77,24 +86,47 @@ int main(int argc, const char** argv)
         Client* client = new Client(profile, serverAddress, serverPort);
         client->Connect();
 
-        while (!shouldExit)
-        {
-            std::getline(std::cin, commandInput);
+        signal(SIGINT, [](int signum) { signaled = 1; });
 
-            try
-            {
-                auto parsedInput = ParseInput(commandInput);
-                std::cout << parsedInput[0] << std::endl;
-                std::cout << parsedInput[1] << std::endl;
+        std::thread inputThread(ListeningHandler, client);
 
-                if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
-            }
-            catch (const std::invalid_argument& e)
-            {
-                std::cerr << e.what() << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
+        while (!signaled)
+            ;
+
+        inputThread.join();
+
+        // while (!shouldExit)
+        // {
+        //     if (signaled == 0)
+        //     {
+        //         // Mesmo sinalizando, o processo fica bloqueado aqui, e só sai quando ler a
+        //         entrada.
+        //         // Uma possibilidade é colocar isso em uma thread, e escutar o SIGINT aqui, e
+        //         quando
+        //         // pegar um SIGINT, matar a thread.
+        //         std::getline(std::cin, commandInput);
+
+        //         try
+        //         {
+        //             auto parsedInput = ParseInput(commandInput);
+        //             std::cout << parsedInput[0] << std::endl;
+        //             std::cout << parsedInput[1] << std::endl;
+
+        //             if (parsedInput[0].compare("FOLLOW") == 0)
+        //             { client->FollowUser(parsedInput[1]); }
+        //         }
+        //         catch (const std::invalid_argument& e)
+        //         {
+        //             std::cerr << e.what() << std::endl;
+        //             exit(EXIT_FAILURE);
+        //         }
+        //     }
+        //     else
+        //     {
+        //         client->Shutdown();
+        //         shouldExit = true;
+        //     }
+        // }
 
         return 0;
     }
