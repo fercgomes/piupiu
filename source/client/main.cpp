@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "client.hpp"
+#include "gui/gui.hpp"
 
 sig_atomic_t signaled = 0;
 
@@ -134,7 +135,8 @@ int main(int argc, const char** argv)
     }
     else
     {
-        std::cerr << "Número de argumentos inválido." << std::endl;
-        return -1;
+        Client* client = new Client();
+        GUI*    gui    = new GUI(client);
+        return gui->run();
     }
 }

@@ -16,6 +16,8 @@ Client::Client(std::string profileHandle, std::string serverAddress, int serverP
 {
 }
 
+Client::Client() {}
+
 void Client::Listen()
 {
     char               buffer[BUFFER_SIZE];
@@ -91,6 +93,16 @@ int Client::Connect()
     return 0;
 }
 
+int Client::Connect(std::string profileHandle, std::string serverAddress, int serverPort)
+{
+    this->profileHandle = profileHandle;
+    this->serverAddress = serverAddress;
+    this->serverPort    = serverPort;
+
+    this->Connect();
+    return 0;
+}
+
 int Client::FollowUser(std::string profile)
 {
     std::cout << "Seguindo usuário " << profile << std::endl;
@@ -100,11 +112,12 @@ int Client::FollowUser(std::string profile)
     return 0;
 }
 
-int Client::Post(std::string recipient, std::string message)
+int Client::Post(std::string message)
 {
     if (message.length() <= 128)
     {
-        std::cout << "Enviando mensagem para " << recipient << std::endl;
+        std::cout << "Enviando mensagem" << std::endl;
+        this->SendMessageToServer(message);
         return 0;
     }
     else
@@ -113,3 +126,9 @@ int Client::Post(std::string recipient, std::string message)
         return 1;
     }
 }
+
+void Client::SetProfileHandle(std::string profileHandle) { this->profileHandle = profileHandle; }
+
+void Client::SetServerAddress(std::string serverAddress) { this->serverAddress = serverAddress; }
+
+void Client::SetServerPort(int port) { this->serverPort = port; }

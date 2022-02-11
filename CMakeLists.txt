@@ -24,6 +24,8 @@ include(Warnings)
 # It is always easier to navigate in an IDE when projects are organized in folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+add_subdirectory(external)
+
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_subdirectory(source/server)
 add_subdirectory(source/client)
