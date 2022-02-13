@@ -21,6 +21,7 @@ Session* SessionManager::StartSession(std::string userHandle)
     it = sessions.find(userHandle);
     if (it == sessions.end())
     {
+        printf("No session exists for %s\n", userHandle.c_str());
         // Sessão não existe
         Session* newSession          = new Session();
         newSession->sessionId        = 1;
@@ -33,9 +34,14 @@ Session* SessionManager::StartSession(std::string userHandle)
     else
     {
         // Sessão existe
-        if (it->second->connectedSockets > MAX_SESSIONS_PER_USER) { return nullptr; }
+        if (it->second->connectedSockets >= MAX_SESSIONS_PER_USER)
+        {
+            printf("Session for %s already exists (2)\n", it->first.c_str());
+            return nullptr;
+        }
         else
         {
+            printf("Session for %s already exists (1)\n", it->first.c_str());
             it->second->connectedSockets++;
             return (it->second);
         }

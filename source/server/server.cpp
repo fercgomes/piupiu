@@ -3,6 +3,7 @@
 #include "server.hpp"
 #include <Packet.hpp>
 #include <arpa/inet.h>
+#include <errno.h>
 #include <iostream>
 #include <string.h>
 #include <string>
@@ -28,13 +29,14 @@ Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress)
                  sizeof(this->socketAddress));
 
     std::cout << "Socket bind (" << r << ")" << std::endl;
+    if (r < 0) { fprintf(stderr, "bind() failed: %s\n", strerror(errno)); }
 }
 
 void Server::Listen()
 {
     char               buffer[this->bufferSize];
     struct sockaddr_in incomingDataAddress;
-    socklen_t          incomingDataAddressLength;
+    socklen_t          incomingDataAddressLength = sizeof(incomingDataAddress);
 
     // Main listening loop
     // Each message that is received gets passe to a message handler.
@@ -56,6 +58,10 @@ void Server::Listen()
             messageHandlerThreads.push_back(std::thread(&Server::MessageHandler, this, *msg));
 
             // TODO: talvez mapear a thread com o id de quem enviou
+        }
+        else
+        {
+            fprintf(stderr, "socket() failed: %s\n", strerror(errno));
         }
     }
 
@@ -89,13 +95,20 @@ void Server::MessageHandler(Message::Packet message)
     {
         std::cout << "Connection message received" << std::endl;
         char* user = message.payload;
-        printf("Connection for user %s\n", user);
+        char  username[100];
+        memset(username, 0, 100);
+        strcpy(username, message.payload);
+        printf("Connection for user %s\n", username);
 
-        auto ret = sessionManager->StartSession(std::string(user));
-        if (ret) { std::cout << user << " connected" << std::endl; }
+        auto ret = sessionManager->StartSession(std::string(username));
+        if (ret)
+        {
+            std::cout << username << " connected" << std::endl;
+            std::cout << ret->userHandle << std::endl;
+        }
         else
         {
-            std::cout << "Max connection reach for " << user << std::endl;
+            std::cout << "Max connection reach for " << username << std::endl;
         }
 
         break;
