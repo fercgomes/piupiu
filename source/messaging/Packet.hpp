@@ -39,7 +39,7 @@ Packet MakeAcceptConnCommand(uint64_t lastSeqn);
 Packet MakeRejectConnCommand(uint64_t lastSeqn);
 Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle);
 Packet MakeSendCommand(uint64_t lastSeqn, std::string message);
-Packet MakeNotification(uint64_t lastSeqn, std::string message);
+Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string sender);
 
 const char* TypeToStr(uint16_t);
 

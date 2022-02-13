@@ -145,6 +145,8 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     {
         std::cout << "Send message received" << std::endl;
         printf("Send message: %s\n", message.payload);
+        Reply(sender, Message::MakeNotification(lastSeqn, std::string(message.payload),
+                                                std::string("fernando")));
         break;
     }
     }

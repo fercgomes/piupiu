@@ -56,7 +56,10 @@ void Client::Listen()
                 Shutdown();
                 break;
             case PACKET_NOTIFICATION:
-                std::cout << "Received notification form server " << std::endl;
+                std::cout << "==============" << std::endl;
+                std::cout << p.payload << std::endl;
+                std::cout << "==============" << std::endl;
+                break;
             default:
                 std::cerr << "Client should not receive this message" << std::endl;
                 Shutdown();

@@ -64,7 +64,7 @@ Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle)
 
 Packet MakeSendCommand(uint64_t lastSeqn, std::string message)
 {
-    Packet p = {.type      = PACKET_REJECT_CONN_CMD,
+    Packet p = {.type      = PACKET_SEND_CMD,
                 .seqn      = lastSeqn + 1,
                 .length    = message.length(),
                 .timestamp = std::time(nullptr)};
@@ -74,14 +74,16 @@ Packet MakeSendCommand(uint64_t lastSeqn, std::string message)
     return p;
 }
 
-Packet MakeNotification(uint64_t lastSeqn, std::string message)
+Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string sender)
 {
-    Packet p = {.type      = PACKET_REJECT_CONN_CMD,
+    Packet p = {.type      = PACKET_NOTIFICATION,
                 .seqn      = lastSeqn + 1,
                 .length    = message.length(),
                 .timestamp = std::time(nullptr)};
 
-    strcpy(p.payload, message.c_str());
+    std::string output = "@" + sender + ":\n" + message;
+
+    strcpy(p.payload, output.c_str());
 
     return p;
 }
