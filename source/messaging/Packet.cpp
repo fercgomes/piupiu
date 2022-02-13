@@ -74,6 +74,18 @@ Packet MakeSendCommand(uint64_t lastSeqn, std::string message)
     return p;
 }
 
+Packet MakeNotification(uint64_t lastSeqn, std::string message)
+{
+    Packet p = {.type      = PACKET_REJECT_CONN_CMD,
+                .seqn      = lastSeqn + 1,
+                .length    = message.length(),
+                .timestamp = std::time(nullptr)};
+
+    strcpy(p.payload, message.c_str());
+
+    return p;
+}
+
 const char* TypeToStr(uint16_t type)
 {
     switch (type)
@@ -102,6 +114,8 @@ const char* TypeToStr(uint16_t type)
     {
         return "PACKET_SEND_CMD";
     }
+    case PACKET_NOTIFICATION:
+        return "PACKET_NOTIFICATION";
     }
 }
 

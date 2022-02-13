@@ -17,6 +17,7 @@ private:
     int             socketDescr;
     static uint64_t lastSentSeqn;
 
+    bool                         connected       = false;
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;
 

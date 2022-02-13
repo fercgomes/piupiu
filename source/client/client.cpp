@@ -44,6 +44,24 @@ void Client::Listen()
         {
             printf("Server replied:\n");
             printf("type: %s\n", Message::TypeToStr(p.type));
+
+            switch (p.type)
+            {
+            case PACKET_ACCEPT_CONN_CMD:
+                connected = true;
+                std::cout << "Client is connected" << std::endl;
+                break;
+            case PACKET_REJECT_CONN_CMD:
+                std::cout << "Connection was rejected (too many clients connected)" << std::endl;
+                Shutdown();
+                break;
+            case PACKET_NOTIFICATION:
+                std::cout << "Received notification form server " << std::endl;
+            default:
+                std::cerr << "Client should not receive this message" << std::endl;
+                Shutdown();
+                break;
+            }
         }
     }
 
