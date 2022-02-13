@@ -5,6 +5,8 @@
 #include <thread>
 #include <unistd.h>
 
+#include "SessionManager.hpp"
+
 class Server
 {
 private:
@@ -17,10 +19,13 @@ private:
 
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;
+    std::vector<std::thread>     messageHandlerThreads;
+
+    SessionManager* sessionManager;
 
     void Listen();
-
     void ParseInput(const char* buffer);
+    void MessageHandler(std::string message);
 
 public:
     Server(std::string bindAddress, int bindPort);

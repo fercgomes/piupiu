@@ -8,6 +8,8 @@
 
 Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress), bindPort(bindPort)
 {
+    sessionManager = new SessionManager(new ProfileManager());
+
     // Inicializar socket
     // TODO: verificar return code do socket
     this->socketDescr = socket(AF_INET, SOCK_DGRAM, 0);
@@ -41,7 +43,12 @@ void Server::Listen()
         printf("Received %d bytes from %s:%d\n", r, inet_ntoa(incomingDataAddress.sin_addr),
                incomingDataAddress.sin_port);
 
-        if (r > 0) { printf("%s\n", buffer); }
+        if (r > 0)
+        {
+            std::cout << "Dispatching to message handler" << std::endl;
+            messageHandlerThreads.push_back(
+                std::thread(&Server::MessageHandler, this, std::string(buffer)));
+        }
     }
 
     std::cout << "Stopping listening thread" << std::endl;
@@ -59,4 +66,17 @@ void Server::Stop()
 {
     close(this->socketDescr);
     std::cout << "Servidor finalizado." << std::endl;
+}
+
+void Server::MessageHandler(std::string message)
+{
+    std::thread::id thisId = std::this_thread::get_id();
+    std::cout << "Handling message (threadId: " << thisId << ")" << std::endl;
+    std::cout << message << std::endl;
+
+    sessionManager->StartSession("Fernando");
+    sessionManager->print();
+
+    // Finalizando thread
+    // TODO: remover thread da lista, ou se pa nem precisa de uma lista com as threads
 }
