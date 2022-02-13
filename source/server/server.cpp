@@ -35,6 +35,9 @@ void Server::Listen()
     struct sockaddr_in incomingDataAddress;
     socklen_t          incomingDataAddressLength;
 
+    // Main listening loop
+    // Each message that is received gets passe to a message handler.
+    // The handler parses the message and executes it.
     while (this->isListening)
     {
         int r = recvfrom(this->socketDescr, buffer, this->bufferSize, 0,
@@ -48,6 +51,8 @@ void Server::Listen()
             std::cout << "Dispatching to message handler" << std::endl;
             messageHandlerThreads.push_back(
                 std::thread(&Server::MessageHandler, this, std::string(buffer)));
+
+            // TODO: talvez mapear a thread com o id de quem enviou
         }
     }
 
