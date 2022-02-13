@@ -3,6 +3,8 @@
 #include <string>
 #include <thread>
 
+#include <Packet.hpp>
+
 class Client
 {
 private:
@@ -12,13 +14,14 @@ private:
 
     const size_t bufferSize = 1024;
 
-    int socketDescr;
+    int             socketDescr;
+    static uint64_t lastSentSeqn;
 
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;
 
     void Listen();
-    int  SendMessageToServer(std::string message);
+    int  SendMessageToServer(Message::Packet message);
 
 public:
     Client(std::string profile, std::string serverAddress, int serverPort);

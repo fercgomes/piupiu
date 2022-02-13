@@ -1,4 +1,4 @@
-add_executable(Client main.cpp client.cpp gui/gui.cpp)
+add_executable(Client main.cpp client.cpp gui/gui.cpp ../messaging/Packet.cpp)
 
 target_set_warnings(Client DISABLE ALL)
 
@@ -7,7 +7,8 @@ find_package(OpenGL REQUIRED)
 
 target_include_directories(Client PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-                           $<INSTALL_INTERFACE:include>)               
+                           $<INSTALL_INTERFACE:include>
+                           "../messaging")               
 
 target_link_libraries(Client PRIVATE Threads::Threads imgui glfw OpenGL::GL ${CMAKE_DL_LIBS})
 

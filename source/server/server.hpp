@@ -5,6 +5,7 @@
 #include <thread>
 #include <unistd.h>
 
+#include <Packet.hpp>
 #include "SessionManager.hpp"
 
 class Server
@@ -25,7 +26,7 @@ private:
 
     void Listen();
     void ParseInput(const char* buffer);
-    void MessageHandler(std::string message);
+    void MessageHandler(Message::Packet message);
 
 public:
     Server(std::string bindAddress, int bindPort);

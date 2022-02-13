@@ -1,13 +1,16 @@
-add_executable(Server main.cpp server.cpp ProfileManager.cpp SessionManager.cpp)
+add_executable(Server main.cpp server.cpp ProfileManager.cpp SessionManager.cpp ../messaging/Packet.cpp)
 
 # target_link_libraries(Server    PRIVATE 
 #         general  # It is possible to link some libraries for debug or optimized builds only
 # )
 
 # include_directories(${CMAKE_SOURCE_DIR}/include)
+target_include_directories(Server PUBLIC
+                           "../messaging")               
 
 target_compile_features(Server PRIVATE cxx_std_14)
 target_link_libraries(Server PRIVATE Threads::Threads)
+
 
 target_set_warnings(Server DISABLE ALL)
 

@@ -11,12 +11,15 @@
 
 #define BUFFER_SIZE 1024
 
+uint64_t Client::lastSentSeqn;
+
 Client::Client(std::string profileHandle, std::string serverAddress, int serverPort)
     : profileHandle(profileHandle), serverAddress(serverAddress), serverPort(serverPort)
 {
+    lastSentSeqn = 0;
 }
 
-Client::Client() {}
+Client::Client() { lastSentSeqn = 0; }
 
 void Client::Listen()
 {
@@ -44,7 +47,7 @@ void Client::Listen()
     std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
 }
 
-int Client::SendMessageToServer(std::string message)
+int Client::SendMessageToServer(Message::Packet message)
 {
     struct sockaddr_in server_addr;
     char               buffer[bufferSize];
@@ -54,7 +57,8 @@ int Client::SendMessageToServer(std::string message)
     server_addr.sin_port        = htons(this->serverPort);
     server_addr.sin_addr.s_addr = inet_addr(this->serverAddress.c_str());
 
-    strcpy(buffer, message.c_str());
+    memset(buffer, 0, bufferSize);
+    strcpy(buffer, (char*)(&message));
     int r = sendto(this->socketDescr, buffer, bufferSize, 0, (struct sockaddr*)&server_addr,
                    sizeof(server_addr));
 
@@ -65,7 +69,7 @@ int Client::SendMessageToServer(std::string message)
 
 void Client::Shutdown()
 {
-    this->SendMessageToServer("DISCONNECT @fernando");
+    this->SendMessageToServer(Message::MakeDisconnectCommand(lastSentSeqn, this->profileHandle));
 
     close(this->socketDescr);
     this->isListening = false;
@@ -84,7 +88,8 @@ int Client::Connect()
     {
         std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
 
-        int r = this->SendMessageToServer("CONNECT @fernando");
+        int r = this->SendMessageToServer(
+            Message::MakeConnectCommand(lastSentSeqn, this->profileHandle));
         printf("%d\n", r);
 
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
@@ -107,7 +112,7 @@ int Client::FollowUser(std::string profile)
 {
     std::cout << "Seguindo usuário " << profile << std::endl;
 
-    this->SendMessageToServer("FOLLOW blah");
+    this->SendMessageToServer(Message::MakeFollowCommand(lastSentSeqn, profile));
 
     return 0;
 }
@@ -117,7 +122,7 @@ int Client::Post(std::string message)
     if (message.length() <= 128)
     {
         std::cout << "Enviando mensagem" << std::endl;
-        this->SendMessageToServer(message);
+        this->SendMessageToServer(Message::MakeSendCommand(lastSentSeqn, message));
         return 0;
     }
     else
