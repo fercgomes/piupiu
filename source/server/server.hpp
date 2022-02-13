@@ -17,6 +17,7 @@ private:
     int                socketDescr;
     struct sockaddr_in socketAddress;
     const int          bufferSize = 2048;
+    static uint64_t    lastSeqn;
 
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;
@@ -26,7 +27,8 @@ private:
 
     void Listen();
     void ParseInput(const char* buffer);
-    void MessageHandler(Message::Packet message);
+    void MessageHandler(Message::Packet message, struct sockaddr_in sender);
+    void Reply(struct sockaddr_in sender, Message::Packet message);
 
 public:
     Server(std::string bindAddress, int bindPort);

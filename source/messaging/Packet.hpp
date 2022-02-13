@@ -39,4 +39,6 @@ Packet MakeRejectConnCommand(uint64_t lastSeqn);
 Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle);
 Packet MakeSendCommand(uint64_t lastSeqn, std::string message);
 
+const char* TypeToStr(uint16_t);
+
 }; // namespace Message

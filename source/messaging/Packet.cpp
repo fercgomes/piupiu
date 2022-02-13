@@ -14,8 +14,6 @@ Packet MakeConnectCommand(uint64_t lastSeqn, std::string handle)
     memset(p.payload, 0, PACKET_MAX_PAYLOAD_LEN);
     strcpy(p.payload, handle.c_str());
 
-    std::cout << p.payload << std::endl;
-
     return p;
 }
 
@@ -75,4 +73,36 @@ Packet MakeSendCommand(uint64_t lastSeqn, std::string message)
 
     return p;
 }
+
+const char* TypeToStr(uint16_t type)
+{
+    switch (type)
+    {
+    case PACKET_CONNECT_CMD:
+    {
+        return "PACKED_CONNECT_CMD";
+    }
+    case PACKET_DISCONNECT_CMD:
+    {
+        return "PACKET_DISCONNECT_CMD";
+    }
+    case PACKET_ACCEPT_CONN_CMD:
+    {
+        return "PACKET_ACCEPT_CONN_CMD";
+    }
+    case PACKET_REJECT_CONN_CMD:
+    {
+        return "PACKET_REJECT_CONN";
+    }
+    case PACKET_FOLLOW_CMD:
+    {
+        return "PACKET_FOLLOW_CMD";
+    }
+    case PACKET_SEND_CMD:
+    {
+        return "PACKET_SEND_CMD";
+    }
+    }
+}
+
 }; // namespace Message

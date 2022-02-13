@@ -26,6 +26,9 @@ void Client::Listen()
     char               buffer[BUFFER_SIZE];
     struct sockaddr_in servAddr;
 
+    Message::Packet p;
+    memset(&p, 0, sizeof(p));
+
     memset(&servAddr, 0, sizeof(servAddr));
     servAddr.sin_family      = AF_INET;
     servAddr.sin_port        = htons(this->serverPort);
@@ -35,12 +38,12 @@ void Client::Listen()
     {
         int n, len;
 
-        n = recvfrom(this->socketDescr, (char*)buffer, BUFFER_SIZE, MSG_WAITALL, NULL, NULL);
+        n = recvfrom(this->socketDescr, &p, sizeof(p), MSG_WAITALL, NULL, NULL);
 
         if (n > 0)
         {
-            buffer[n] = '\0';
-            printf("Server: %s\n", buffer);
+            printf("Server replied:\n");
+            printf("type: %s\n", Message::TypeToStr(p.type));
         }
     }
 
@@ -60,7 +63,7 @@ int Client::SendMessageToServer(Message::Packet message)
     int r = sendto(this->socketDescr, &message, sizeof(message), 0, (struct sockaddr*)&server_addr,
                    sizeof(server_addr));
 
-    printf("Data Sent: %s [return value: %d]\n", buffer, r);
+    // printf("Data Sent: %s [return value: %d]\n", buffer, r);
 
     return r;
 }
@@ -88,7 +91,7 @@ int Client::Connect()
 
         int r = this->SendMessageToServer(
             Message::MakeConnectCommand(lastSentSeqn, this->profileHandle));
-        printf("%d\n", r);
+        // printf("%d\n", r);
 
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
     }

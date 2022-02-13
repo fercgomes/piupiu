@@ -3,13 +3,16 @@
 #include <thread>
 #include "ProfileManager.hpp"
 
+#include <arpa/inet.h>
+
 #define MAX_SESSIONS_PER_USER 2
 
 struct Session
 {
-    int         sessionId;
-    std::string userHandle;
-    int         connectedSockets;
+    int                                                   sessionId;
+    std::string                                           userHandle;
+    int                                                   connectedSockets;
+    std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> connectedPeers;
 };
 
 class SessionManager
@@ -21,8 +24,10 @@ public:
     // Retorna ponteiro para sessão, caso exista.
     // Retorna NULL caso o limite de sessões tenha
     // sido alcançado.
-    Session* StartSession(std::string userHandle);
-    int      EndSession(std::string userHandle);
+    Session* StartSession(std::string userHandle, struct sockaddr_in sender);
+    int      EndSession(std::string userHandle, struct sockaddr_in sender);
+
+    std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> GetUserAddresses(std::string handle);
 
     void print();
 

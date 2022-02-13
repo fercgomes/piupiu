@@ -1,4 +1,6 @@
 #include "SessionManager.hpp"
+#include <arpa/inet.h>
+#include <cstring>
 #include <iostream>
 
 SessionManager::SessionManager(ProfileManager* profileManager) : profileManager(profileManager) {}
@@ -12,7 +14,7 @@ SessionManager::~SessionManager()
     }
 }
 
-Session* SessionManager::StartSession(std::string userHandle)
+Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in sender)
 {
     // Esse seria o lugar certo de ativar o mutex?
     const std::lock_guard<std::mutex>         lock(sessionMutex);
@@ -23,10 +25,13 @@ Session* SessionManager::StartSession(std::string userHandle)
     {
         printf("No session exists for %s\n", userHandle.c_str());
         // Sessão não existe
-        Session* newSession          = new Session();
-        newSession->sessionId        = 1;
-        newSession->connectedSockets = 1;
-        newSession->userHandle       = userHandle;
+        Session* newSession = new Session();
+        memset(newSession, 0, sizeof(Session));
+
+        newSession->sessionId         = 1;
+        newSession->connectedSockets  = 1;
+        newSession->userHandle        = userHandle;
+        newSession->connectedPeers[0] = sender;
 
         sessions.insert(std::pair<std::string, Session*>(userHandle, newSession));
         return newSession;
@@ -43,12 +48,13 @@ Session* SessionManager::StartSession(std::string userHandle)
         {
             printf("Session for %s already exists (1)\n", it->first.c_str());
             it->second->connectedSockets++;
+            it->second->connectedPeers[1] = sender;
             return (it->second);
         }
     }
 }
 
-int SessionManager::EndSession(std::string userHandle)
+int SessionManager::EndSession(std::string userHandle, struct sockaddr_in sender)
 {
     const std::lock_guard<std::mutex> lock(sessionMutex);
     auto                              it = sessions.find(userHandle);
@@ -59,6 +65,7 @@ int SessionManager::EndSession(std::string userHandle)
         Session* session = it->second;
         if (session->connectedSockets == 1)
         {
+            // TODO: erase sender address
             sessions.erase(it);
             delete session;
             return 1;
@@ -76,5 +83,16 @@ void SessionManager::print()
     for (auto it = sessions.begin(); it != sessions.end(); ++it)
     {
         printf("%s: \n", it->second->userHandle);
+    }
+}
+
+std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER>
+SessionManager::GetUserAddresses(std::string handle)
+{
+    auto it = sessions.find(handle);
+    if (it == sessions.end()) { return std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER>(); }
+    else
+    {
+        return it->second->connectedPeers;
     }
 }

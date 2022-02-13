@@ -8,9 +8,12 @@
 #include <string.h>
 #include <string>
 
+uint64_t Server::lastSeqn;
+
 Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress), bindPort(bindPort)
 {
     sessionManager = new SessionManager(new ProfileManager());
+    lastSeqn       = 0;
 
     // Inicializar socket
     // TODO: verificar return code do socket
@@ -46,8 +49,8 @@ void Server::Listen()
         int r = recvfrom(this->socketDescr, buffer, this->bufferSize, 0,
                          (struct sockaddr*)&incomingDataAddress, &incomingDataAddressLength);
 
-        printf("Received %d bytes from %s:%d\n", r, inet_ntoa(incomingDataAddress.sin_addr),
-               incomingDataAddress.sin_port);
+        // printf("Received %d bytes from %s:%d\n", r, inet_ntoa(incomingDataAddress.sin_addr),
+        //        incomingDataAddress.sin_port);
 
         if (r > 0)
         {
@@ -55,7 +58,8 @@ void Server::Listen()
 
             auto msg = reinterpret_cast<Message::Packet*>(buffer);
 
-            messageHandlerThreads.push_back(std::thread(&Server::MessageHandler, this, *msg));
+            messageHandlerThreads.push_back(
+                std::thread(&Server::MessageHandler, this, *msg, incomingDataAddress));
 
             // TODO: talvez mapear a thread com o id de quem enviou
         }
@@ -82,44 +86,42 @@ void Server::Stop()
     std::cout << "Servidor finalizado." << std::endl;
 }
 
-void Server::MessageHandler(Message::Packet message)
+void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
 {
     std::thread::id thisId = std::this_thread::get_id();
     std::cout << "Handling message (threadId: " << thisId << ")" << std::endl;
-    printf("type=%u\nseqn=%u\ntimestamp=%u\nlen=%u\npayload=%s\n", message.type, message.seqn,
-           message.timestamp, message.length, message.payload);
+    // printf("type=%u\nseqn=%u\ntimestamp=%u\nlen=%u\npayload=%s\n", message.type, message.seqn,
+    // message.timestamp, message.length, message.payload);
 
     switch (message.type)
     {
     case PACKET_CONNECT_CMD:
     {
-        std::cout << "Connection message received" << std::endl;
         char* user = message.payload;
         char  username[100];
         memset(username, 0, 100);
         strcpy(username, message.payload);
-        printf("Connection for user %s\n", username);
 
-        auto ret = sessionManager->StartSession(std::string(username));
+        auto ret = sessionManager->StartSession(std::string(username), sender);
         if (ret)
         {
             std::cout << username << " connected" << std::endl;
-            std::cout << ret->userHandle << std::endl;
+            Reply(sender, Message::MakeAcceptConnCommand(lastSeqn));
         }
         else
         {
             std::cout << "Max connection reach for " << username << std::endl;
+            Reply(sender, Message::MakeRejectConnCommand(lastSeqn));
         }
 
         break;
     }
     case PACKET_DISCONNECT_CMD:
     {
-        std::cout << "Disconnect message received" << std::endl;
         char* user = message.payload;
-        printf("Disconnect for user %s\n", user);
-        int ended = sessionManager->EndSession(std::string(user));
-        printf("Connections endede: %d\n", ended);
+        printf("Disconnect user %s\n", user);
+        int ended = sessionManager->EndSession(std::string(user), sender);
+        printf("Connections ended: %d\n", ended);
 
         break;
     }
@@ -135,7 +137,6 @@ void Server::MessageHandler(Message::Packet message)
     }
     case PACKET_FOLLOW_CMD:
     {
-        std::cout << "Follow message received" << std::endl;
         char* username = message.payload;
         printf("Follow %s\n", message.payload);
         break;
@@ -150,4 +151,17 @@ void Server::MessageHandler(Message::Packet message)
 
     // Finalizando thread
     // TODO: remover thread da lista, ou se pa nem precisa de uma lista com as threads
+}
+
+void Server::Reply(struct sockaddr_in sender, Message::Packet message)
+{
+
+    int r = sendto(this->socketDescr, &message, sizeof(message), 0, (struct sockaddr*)&sender,
+                   sizeof(sender));
+
+    if (r < 0) { fprintf(stderr, "sendto() failed: %s\n", strerror(errno)); }
+    else
+    {
+        printf("Replied to client succesfully\n");
+    }
 }
