@@ -16,7 +16,7 @@ private:
 
     int                socketDescr;
     struct sockaddr_in socketAddress;
-    const int          bufferSize = 1024;
+    const int          bufferSize = 2048;
 
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;

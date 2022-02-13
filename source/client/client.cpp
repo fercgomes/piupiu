@@ -57,9 +57,7 @@ int Client::SendMessageToServer(Message::Packet message)
     server_addr.sin_port        = htons(this->serverPort);
     server_addr.sin_addr.s_addr = inet_addr(this->serverAddress.c_str());
 
-    memset(buffer, 0, bufferSize);
-    strcpy(buffer, (char*)(&message));
-    int r = sendto(this->socketDescr, buffer, bufferSize, 0, (struct sockaddr*)&server_addr,
+    int r = sendto(this->socketDescr, &message, sizeof(message), 0, (struct sockaddr*)&server_addr,
                    sizeof(server_addr));
 
     printf("Data Sent: %s [return value: %d]\n", buffer, r);

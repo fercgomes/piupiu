@@ -91,11 +91,23 @@ void Server::MessageHandler(Message::Packet message)
         char* user = message.payload;
         printf("Connection for user %s\n", user);
 
+        auto ret = sessionManager->StartSession(std::string(user));
+        if (ret) { std::cout << user << " connected" << std::endl; }
+        else
+        {
+            std::cout << "Max connection reach for " << user << std::endl;
+        }
+
         break;
     }
     case PACKET_DISCONNECT_CMD:
     {
         std::cout << "Disconnect message received" << std::endl;
+        char* user = message.payload;
+        printf("Disconnect for user %s\n", user);
+        int ended = sessionManager->EndSession(std::string(user));
+        printf("Connections endede: %d\n", ended);
+
         break;
     }
     case PACKET_ACCEPT_CONN_CMD:

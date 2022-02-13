@@ -11,7 +11,10 @@
 #include <unistd.h>
 
 #include "client.hpp"
+
+#ifdef USE_GUI
 #include "gui/gui.hpp"
+#endif
 
 sig_atomic_t signaled = 0;
 
@@ -135,8 +138,12 @@ int main(int argc, const char** argv)
     }
     else
     {
+#ifdef USE_GUI
         Client* client = new Client();
         GUI*    gui    = new GUI(client);
         return gui->run();
+#else
+        std::cout << "Argumentos inválidos." << std::endl;
+#endif
     }
 }

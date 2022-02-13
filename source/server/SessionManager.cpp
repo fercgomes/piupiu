@@ -1,4 +1,5 @@
 #include "SessionManager.hpp"
+#include <iostream>
 
 SessionManager::SessionManager(ProfileManager* profileManager) : profileManager(profileManager) {}
 

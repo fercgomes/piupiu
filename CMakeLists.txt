@@ -10,6 +10,12 @@ project(
     LANGUAGES C CXX
 )
 
+option(USE_GUI "Build a graphical client" OFF)
+
+if(NOT USE_GUI)
+    message(STATUS "Compilando sem interface gráfica. Use a opção -DUSE_GUI=ON para compilar com interface gráfica.")
+endif()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
