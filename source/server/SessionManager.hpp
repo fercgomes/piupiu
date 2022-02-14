@@ -15,6 +15,13 @@ struct Session
     std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> connectedPeers;
 };
 
+struct Session2
+{
+    int                id;
+    struct sockaddr_in address;
+    Profile*           profile;
+};
+
 class SessionManager
 {
 public:
