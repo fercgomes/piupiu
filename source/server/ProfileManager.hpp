@@ -1,26 +1,12 @@
-#include <Notification.hpp>
+#pragma once
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <vector>
+#include "Profile.hpp"
 
-class Profile
-{
-private:
-    std::string              handle;
-    ProfileManager*          manager;
-    std::vector<Profile*>    following;
-    std::queue<Notification> pendingNotifications;
-    std::mutex               queueMutex;
-
-public:
-    Profile(std::string handle, ProfileManager* manager);
-
-    std::string           GetHandle();
-    std::vector<Profile*> GetFollowers();
-    void                  Follow(std::string userHandle);
-    int                   PushNotification(Notification notification);
-};
+class Profile;
 
 class ProfileManager
 {
@@ -31,8 +17,7 @@ private:
     void Sync();
 
 public:
-    std::vector<Profile*> GetProfiles();
-    Profile*              GetProfileByName(std::string userHandle);
+    Profile* GetProfileByName(std::string userHandle);
 
     Profile* NewProfile(std::string handle);
 }; // namespace ProfileManager
