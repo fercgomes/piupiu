@@ -133,7 +133,7 @@ int Client::Connect(std::string profileHandle, std::string serverAddress, int se
 int Client::FollowUser(std::string profile)
 {
     std::cout << "Seguindo usuário " << profile << std::endl;
-
+    //We first need to check if the user exists
     this->SendMessageToServer(Message::MakeFollowCommand(lastSentSeqn, profile));
 
     return 0;

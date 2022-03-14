@@ -17,6 +17,7 @@ SessionManager::~SessionManager()
 Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in sender)
 {
     // Esse seria o lugar certo de ativar o mutex?
+    // Caso correto, considerando que usamos apenas 1 thread e queremos evitar uma falha
     const std::lock_guard<std::mutex>         lock(sessionMutex);
     std::map<std::string, Session*>::iterator it;
 
@@ -46,6 +47,8 @@ Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in
         }
         else
         {
+            // We allocate the new session for same user in a pair. Is this the right format?
+            //Don't we need to execute the thread and kill the command if we not need?
             printf("Session for %s already exists (1)\n", it->first.c_str());
             it->second->connectedSockets++;
             it->second->connectedPeers[1] = sender;
