@@ -8,20 +8,6 @@
 
 #define MAX_SESSIONS_PER_USER 2
 
-struct Session
-{
-    int                                                   sessionId;
-    std::string                                           userHandle;
-    int                                                   connectedSockets;
-    std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> connectedPeers;
-};
-
-struct Session2
-{
-    int                id;
-    struct sockaddr_in address;
-    Profile*           profile;
-};
 
 class SessionManager
 {

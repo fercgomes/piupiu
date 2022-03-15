@@ -2,6 +2,14 @@
   "cmake.configureOnOpen": true,
   "files.associations": {
     "*.ejs": "html",
-    "iostream": "cpp"
+    "iostream": "cpp",
+    "*.tcc": "cpp",
+    "optional": "cpp",
+    "istream": "cpp",
+    "ostream": "cpp",
+    "streambuf": "cpp",
+    "type_traits": "cpp",
+    "algorithm": "cpp",
+    "new": "cpp"
   }
 }
