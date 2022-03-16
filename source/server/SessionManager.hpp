@@ -24,6 +24,7 @@ public:
     std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> GetUserAddresses(std::string handle);
 
     void print();
+    std::string GetUserNameByAddressAndIP(in_addr address, int port);
 
 private:
     ProfileManager*                 profileManager;

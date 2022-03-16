@@ -86,6 +86,17 @@ void SessionManager::print()
     }
 }
 
+std::string SessionManager::GetUserNameByAddressAndIP(in_addr address, int port)
+{
+    for (auto it = sessions.begin(); it != sessions.end(); ++it)
+    {
+        //TODO: need to check all elements on connectedPeers
+        if (it->second->connectedPeers[0].sin_port == port && it->second->connectedPeers[0].sin_addr.s_addr == address.s_addr
+        || it->second->connectedPeers[0].sin_port == port && it->second->connectedPeers[0].sin_addr.s_addr == address.s_addr)
+            return it -> first;
+    }
+}
+
 std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER>
 SessionManager::GetUserAddresses(std::string handle)
 {
@@ -96,3 +107,8 @@ SessionManager::GetUserAddresses(std::string handle)
         return it->second->connectedPeers;
     }
 }
+
+
+
+
+
