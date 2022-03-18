@@ -1,4 +1,5 @@
 #include "SessionManager.hpp"
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cstring>
 #include <iostream>
@@ -14,11 +15,12 @@ SessionManager::~SessionManager()
     }
 }
 
-Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in sender)
+Session* SessionManager::StartSession(Profile* profile, struct sockaddr_in sender)
 {
     // Esse seria o lugar certo de ativar o mutex?
     const std::lock_guard<std::mutex>         lock(sessionMutex);
     std::map<std::string, Session*>::iterator it;
+    std::string                               userHandle = profile->GetHandle();
 
     it = sessions.find(userHandle);
     if (it == sessions.end())
@@ -27,10 +29,8 @@ Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in
         // Sessão não existe
         Session* newSession = new Session();
 
-        newSession->sessionId         = 1;
-        newSession->connectedSockets  = 1;
-        newSession->userHandle        = userHandle;
-        newSession->connectedPeers[0] = sender;
+        newSession->sessionId  = 1;
+        newSession->userHandle = userHandle;
         newSession->sockets.push_back(sender);
 
         sessions.insert(std::pair<std::string, Session*>(userHandle, newSession));
@@ -39,7 +39,7 @@ Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in
     else
     {
         // Sessão existe
-        if (it->second->connectedSockets >= MAX_SESSIONS_PER_USER)
+        if (it->second->sockets.size() >= MAX_SESSIONS_PER_USER)
         {
             printf("Session for %s already exists (2)\n", it->first.c_str());
             return nullptr;
@@ -47,33 +47,39 @@ Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in
         else
         {
             printf("Session for %s already exists (1)\n", it->first.c_str());
-            it->second->connectedSockets++;
-            it->second->connectedPeers[1] = sender;
+            it->second->sockets.push_back(sender);
             return (it->second);
         }
     }
 }
 
-int SessionManager::EndSession(std::string userHandle, struct sockaddr_in sender)
+int SessionManager::EndSession(Profile* profile, struct sockaddr_in sender)
 {
     const std::lock_guard<std::mutex> lock(sessionMutex);
-    auto                              it = sessions.find(userHandle);
+
+    std::string userHandle = profile->GetHandle();
+    auto        it         = sessions.find(userHandle);
 
     if (it == sessions.end()) { return 0; }
     else
     {
         Session* session = it->second;
-        if (session->connectedSockets == 1)
+
+        const struct sockaddr_in element = sender;
+        auto socketIt = std::find_if(session->sockets.begin(), session->sockets.end(),
+                                     [sender](struct sockaddr_in a) {
+                                         return (a.sin_addr.s_addr == sender.sin_addr.s_addr &&
+                                                 a.sin_port == sender.sin_port);
+                                     });
+
+        if (socketIt != session->sockets.end())
         {
-            // TODO: erase sender address
-            sessions.erase(it);
-            delete session;
+            session->sockets.erase(socketIt);
             return 1;
         }
         else
         {
-            session->connectedSockets--;
-            return 1;
+            return 0;
         }
     }
 }
@@ -88,6 +94,8 @@ void SessionManager::print()
 
 int SessionManager::GetUserNameByAddressAndIP(in_addr address, int port, std::string& out)
 {
+    const std::lock_guard<std::mutex> lock(sessionMutex);
+
     bool found = false;
     for (auto it = sessions.begin(); it != sessions.end(); ++it)
     {
@@ -113,6 +121,8 @@ int SessionManager::GetUserNameByAddressAndIP(in_addr address, int port, std::st
 
 std::vector<struct sockaddr_in> SessionManager::GetUserAddresses(std::string handle)
 {
+    const std::lock_guard<std::mutex> lock(sessionMutex);
+
     auto it = sessions.find(handle);
     if (it == sessions.end()) { return std::vector<struct sockaddr_in>(); }
     else

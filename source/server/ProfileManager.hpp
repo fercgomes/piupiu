@@ -7,11 +7,14 @@
 #include "Profile.hpp"
 
 class Profile;
+struct Session;
 
 class ProfileManager
 {
 private:
     std::vector<Profile*> profiles;
+
+    std::mutex profileMutex;
 
     // Sincroniza os perfis em disco
     void Sync();
@@ -19,5 +22,6 @@ private:
 public:
     Profile* GetProfileByName(std::string userHandle);
 
+    Profile* NewProfile(std::string handle, Session* session);
     Profile* NewProfile(std::string handle);
 }; // namespace ProfileManager

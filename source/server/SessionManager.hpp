@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include "ProfileManager.hpp"
+#include "Session.hpp"
 
 #include <arpa/inet.h>
 
@@ -17,8 +18,8 @@ public:
     // Retorna ponteiro para sessão, caso exista.
     // Retorna NULL caso o limite de sessões tenha
     // sido alcançado.
-    Session* StartSession(std::string userHandle, struct sockaddr_in sender);
-    int      EndSession(std::string userHandle, struct sockaddr_in sender);
+    Session* StartSession(Profile* profile, struct sockaddr_in sender);
+    int      EndSession(Profile* profile, struct sockaddr_in sender);
 
     std::vector<struct sockaddr_in> GetUserAddresses(std::string handle);
 

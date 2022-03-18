@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string.h>
 #include <string>
+#include "PendingNotification.hpp"
 
 uint64_t Server::lastSeqn;
 
@@ -60,6 +61,7 @@ void Server::Listen()
 
             messageHandlerThreads.push_back(
                 std::thread(&Server::MessageHandler, this, *msg, incomingDataAddress));
+            // Deveria limpar a lista periodicamente
 
             // TODO: talvez mapear a thread com o id de quem enviou
         }
@@ -72,9 +74,42 @@ void Server::Listen()
     std::cout << "Stopping listening thread" << std::endl;
 }
 
+void Server::PendingNotificationWorker()
+{
+    while (true)
+    {
+        const std::lock_guard<std::mutex> lock(notificationQueueMutex);
+
+        if (!notificationQueue.empty())
+        {
+            auto notification = notificationQueue.front();
+            notificationQueue.pop();
+            Session* session = notification.recipientSession;
+            auto     sockets = session->sockets;
+            if (sockets.size() > 0)
+            {
+                std::cout << "Enviando notificação" << std::endl;
+                for (auto socket : sockets)
+                {
+                    Reply(socket, Message::MakeNotification(lastSeqn, notification.body,
+                                                            notification.senderUsername));
+                }
+            }
+            else
+            {
+                // Retorna notificação pra fila
+                notificationQueue.push(notification);
+            }
+        }
+    }
+}
+
 void Server::Start()
 {
     this->listeningThread = std::make_unique<std::thread>(&Server::Listen, this);
+
+    this->pendingNotificationWorkerThread =
+        std::make_unique<std::thread>(&Server::PendingNotificationWorker, this);
 
     while (1)
         ;
@@ -104,11 +139,26 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
 
         std::string username2(username);
 
-        auto ret = sessionManager->StartSession(username2, sender);
-        sessionManager->GetProfileManager()->NewProfile(username2);
-        if (ret)
+        auto     profileManager = sessionManager->GetProfileManager();
+        Profile* profile;
+        profile = profileManager->GetProfileByName(username2);
+        std::cout << "Aqui\n";
+        std::cout << "Profile ptr:" << profile << std::endl;
+
+        if (profile)
+        { std::cout << "Profile for " << profile->GetHandle() << " found." << std::endl; }
+        else
+        {
+            std::cout << "Profile for " << username2 << " not found." << std::endl;
+            profile = profileManager->NewProfile(username2);
+        }
+
+        auto session = sessionManager->StartSession(profile, sender);
+
+        if (session)
         {
             std::cout << username << " connected" << std::endl;
+            profile->SetSession(session);
             Reply(sender, Message::MakeAcceptConnCommand(lastSeqn));
         }
         else
@@ -121,10 +171,22 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     }
     case PACKET_DISCONNECT_CMD:
     {
-        char* user = message.payload;
+        char*       user = message.payload;
+        std::string username(user);
         printf("Disconnect user %s\n", user);
-        int ended = sessionManager->EndSession(std::string(user), sender);
-        printf("Connections ended: %d\n", ended);
+
+        auto     profileManager = sessionManager->GetProfileManager();
+        Profile* profile;
+        profile = profileManager->GetProfileByName(username);
+        if (profile)
+        {
+            int ended = sessionManager->EndSession(profile, sender);
+            printf("Connections ended: %d\n", ended);
+        }
+        else
+        {
+            std::cout << "No profile found to disconnect" << std::endl;
+        }
 
         break;
     }
@@ -167,23 +229,30 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     case PACKET_SEND_CMD:
     {
         std::cout << "Send message received" << std::endl;
-        printf("Send message: %s\n", message.payload);
         std::string username;
         if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
         {
             Profile* profile = sessionManager->GetProfileManager()->GetProfileByName(username);
             if (profile)
             {
+                std::cout << "Sending message from " << profile->GetHandle() << std::endl;
                 auto followers = profile->GetFollowers();
                 for (auto follower : followers)
                 {
-                    printf("Enviando notificacao\n");
-                    printf("%s\n", follower->GetHandle().c_str());
-                    auto sockets = sessionManager->GetUserAddresses(follower->GetHandle());
-                    for (auto socket : sockets)
+                    std::cout << "To: " << follower->GetHandle() << std::endl;
+                    // auto sockets = sessionManager->GetUserAddresses(follower->GetHandle());
+                    // for (auto socket : sockets)
+                    // {
+                    //     Reply(socket, Message::MakeNotification(
+                    //                       lastSeqn, std::string(message.payload), username));
+                    // }
+                    // inserir numa fila de notificação
+                    std::string         body(message.payload);
+                    PendingNotification notification(username, body, follower->GetSession());
+
                     {
-                        Reply(socket, Message::MakeNotification(
-                                          lastSeqn, std::string(message.payload), username));
+                        const std::lock_guard<std::mutex> lock(notificationQueueMutex);
+                        notificationQueue.push(notification);
                     }
                 }
             }

@@ -15,10 +15,25 @@ struct profileHasName
     }
 };
 
+Profile* ProfileManager::NewProfile(std::string handle, Session* session)
+{
+    Profile* p = new Profile(handle, this, session);
+    {
+        const std::lock_guard<std::mutex> lock_guard(profileMutex);
+        profiles.push_back(p);
+    }
+    Sync();
+
+    return p;
+}
+
 Profile* ProfileManager::NewProfile(std::string handle)
 {
     Profile* p = new Profile(handle, this);
-    profiles.push_back(p);
+    {
+        const std::lock_guard<std::mutex> lock_guard(profileMutex);
+        profiles.push_back(p);
+    }
     Sync();
 
     return p;
@@ -32,10 +47,10 @@ void ProfileManager::Sync()
 
 Profile* ProfileManager::GetProfileByName(std::string userHandle)
 {
+    const std::lock_guard<std::mutex> lock_guard(profileMutex);
+
     auto it = std::find_if(profiles.begin(), profiles.end(), profileHasName(userHandle));
-    if (it != profiles.end()) {
-        return *it;
-     }
+    if (it != profiles.end()) { return *it; }
     else
     {
         return nullptr;

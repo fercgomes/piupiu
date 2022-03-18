@@ -3,9 +3,15 @@
 #include <iostream>
 #include <mutex>
 
+Profile::Profile(std::string handle, ProfileManager* manager, Session* session)
+    : handle(handle), manager(manager), session(session)
+{
+}
+
 Profile::Profile(std::string handle, ProfileManager* manager) : handle(handle), manager(manager) {}
 
 std::string Profile::GetHandle() const { return handle; }
+Session*    Profile::GetSession() const { return session; }
 
 void Profile::AddFollower(std::string userHandle)
 {
@@ -18,3 +24,5 @@ void Profile::AddFollower(std::string userHandle)
 }
 
 std::vector<Profile*> Profile::GetFollowers() { return followers; }
+
+void Profile::SetSession(Session* session) { this->session = session; }
