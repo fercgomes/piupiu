@@ -25,7 +25,7 @@ public:
     std::string           GetHandle() const;
     std::vector<Profile*> GetFollowers();
     Session*              GetSession() const;
-    void                  AddFollower(std::string userHandle);
+    void                  AddFollower(std::string userHandle, bool saveDisk = true);
     void                  SetSession(Session* session);
 };
 

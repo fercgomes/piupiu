@@ -13,10 +13,14 @@ Profile::Profile(std::string handle, ProfileManager* manager) : handle(handle), 
 std::string Profile::GetHandle() const { return handle; }
 Session*    Profile::GetSession() const { return session; }
 
-void Profile::AddFollower(std::string userHandle)
+void Profile::AddFollower(std::string userHandle, bool saveDisk)
 {
     auto pProfile = manager->GetProfileByName(userHandle);
-    if (pProfile) { followers.push_back(pProfile); }
+    if (pProfile)
+    {
+        followers.push_back(pProfile);
+        if (saveDisk) manager->Sync();
+    }
     else
     {
         std::cerr << "Usuário não existe" << std::endl;

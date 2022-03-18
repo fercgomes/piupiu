@@ -16,12 +16,13 @@ private:
 
     std::mutex profileMutex;
 
-    // Sincroniza os perfis em disco
-    void Sync();
+    int ReadProfilesFromFile();
 
 public:
-    Profile* GetProfileByName(std::string userHandle);
+    ProfileManager();
 
+    Profile* GetProfileByName(std::string userHandle);
     Profile* NewProfile(std::string handle, Session* session);
     Profile* NewProfile(std::string handle);
+    void     Sync();
 }; // namespace ProfileManager
