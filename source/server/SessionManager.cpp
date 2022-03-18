@@ -26,12 +26,12 @@ Session* SessionManager::StartSession(std::string userHandle, struct sockaddr_in
         printf("No session exists for %s\n", userHandle.c_str());
         // Sessão não existe
         Session* newSession = new Session();
-        memset(newSession, 0, sizeof(Session));
 
         newSession->sessionId         = 1;
         newSession->connectedSockets  = 1;
         newSession->userHandle        = userHandle;
         newSession->connectedPeers[0] = sender;
+        newSession->sockets.push_back(sender);
 
         sessions.insert(std::pair<std::string, Session*>(userHandle, newSession));
         return newSession;
@@ -86,29 +86,39 @@ void SessionManager::print()
     }
 }
 
-std::string SessionManager::GetUserNameByAddressAndIP(in_addr address, int port)
+int SessionManager::GetUserNameByAddressAndIP(in_addr address, int port, std::string& out)
 {
+    bool found = false;
     for (auto it = sessions.begin(); it != sessions.end(); ++it)
     {
-        //TODO: need to check all elements on connectedPeers
-        if (it->second->connectedPeers[0].sin_port == port && it->second->connectedPeers[0].sin_addr.s_addr == address.s_addr
-        || it->second->connectedPeers[0].sin_port == port && it->second->connectedPeers[0].sin_addr.s_addr == address.s_addr)
-            return it -> first;
+        // TODO: need to check all elements on connectedPeers
+        // if (it->second->connectedPeers[0].sin_port == port &&
+        //         it->second->connectedPeers[0].sin_addr.s_addr == address.s_addr ||
+        //     it->second->connectedPeers[1].sin_port == port &&
+        //         it->second->connectedPeers[1].sin_addr.s_addr == address.s_addr)
+        for (auto socket : it->second->sockets)
+        {
+            if (socket.sin_addr.s_addr == address.s_addr && socket.sin_port == port)
+            {
+                found     = true;
+                auto user = it->second->userHandle;
+                out.swap(user);
+                return 1;
+            }
+        }
     }
+
+    return 0;
 }
 
-std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER>
-SessionManager::GetUserAddresses(std::string handle)
+std::vector<struct sockaddr_in> SessionManager::GetUserAddresses(std::string handle)
 {
     auto it = sessions.find(handle);
-    if (it == sessions.end()) { return std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER>(); }
+    if (it == sessions.end()) { return std::vector<struct sockaddr_in>(); }
     else
     {
-        return it->second->connectedPeers;
+        return it->second->sockets;
     }
 }
 
-
-
-
-
+ProfileManager* SessionManager::GetProfileManager() const { return this->profileManager; }

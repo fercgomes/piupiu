@@ -102,7 +102,10 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         memset(username, 0, 100);
         strcpy(username, message.payload);
 
-        auto ret = sessionManager->StartSession(std::string(username), sender);
+        std::string username2(username);
+
+        auto ret = sessionManager->StartSession(username2, sender);
+        sessionManager->GetProfileManager()->NewProfile(username2);
         if (ret)
         {
             std::cout << username << " connected" << std::endl;
@@ -137,16 +140,62 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     }
     case PACKET_FOLLOW_CMD:
     {
-        char* username = message.payload;
-        printf("Follow %s\n", message.payload);
+        char*       usernameToFollow = message.payload;
+        std::string username;
+        if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
+        {
+            // // TODO: e se nao achar?
+
+            Profile* profile =
+                sessionManager->GetProfileManager()->GetProfileByName(usernameToFollow);
+            if (profile)
+            {
+                profile->AddFollower(username);
+                printf("Follow %s\n", message.payload);
+            }
+            else
+            {
+                printf("Não achou profile\n");
+            }
+        }
+        else
+        {
+            printf("Não achou user\n");
+        }
         break;
     }
     case PACKET_SEND_CMD:
     {
         std::cout << "Send message received" << std::endl;
         printf("Send message: %s\n", message.payload);
-        Reply(sender, Message::MakeNotification(lastSeqn, std::string(message.payload),
-                                                sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port)));
+        std::string username;
+        if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
+        {
+            Profile* profile = sessionManager->GetProfileManager()->GetProfileByName(username);
+            if (profile)
+            {
+                auto followers = profile->GetFollowers();
+                for (auto follower : followers)
+                {
+                    printf("Enviando notificacao\n");
+                    printf("%s\n", follower->GetHandle().c_str());
+                    auto sockets = sessionManager->GetUserAddresses(follower->GetHandle());
+                    for (auto socket : sockets)
+                    {
+                        Reply(socket, Message::MakeNotification(
+                                          lastSeqn, std::string(message.payload), username));
+                    }
+                }
+            }
+            else
+            {
+                printf("Não achou profile\n");
+            }
+        }
+        else
+        {
+            printf("Não achou user\n");
+        }
         break;
     }
     }

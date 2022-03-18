@@ -16,3 +16,5 @@ void Profile::AddFollower(std::string userHandle)
         std::cerr << "Usuário não existe" << std::endl;
     }
 }
+
+std::vector<Profile*> Profile::GetFollowers() { return followers; }

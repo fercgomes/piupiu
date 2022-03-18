@@ -8,7 +8,6 @@
 
 #define MAX_SESSIONS_PER_USER 2
 
-
 class SessionManager
 {
 public:
@@ -21,10 +20,12 @@ public:
     Session* StartSession(std::string userHandle, struct sockaddr_in sender);
     int      EndSession(std::string userHandle, struct sockaddr_in sender);
 
-    std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> GetUserAddresses(std::string handle);
+    std::vector<struct sockaddr_in> GetUserAddresses(std::string handle);
 
     void print();
-    std::string GetUserNameByAddressAndIP(in_addr address, int port);
+    int  GetUserNameByAddressAndIP(in_addr address, int port, std::string& out);
+
+    ProfileManager* GetProfileManager() const;
 
 private:
     ProfileManager*                 profileManager;

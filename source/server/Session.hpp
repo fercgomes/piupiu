@@ -14,4 +14,5 @@ struct Session
     std::string                                           userHandle;
     int                                                   connectedSockets;
     std::array<struct sockaddr_in, MAX_SESSIONS_PER_USER> connectedPeers;
+    std::vector<struct sockaddr_in>                       sockets;
 };
