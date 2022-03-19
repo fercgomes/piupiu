@@ -204,6 +204,12 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         {
             Profile* profile = profileManager->GetProfileByName(usernameToFollow);
 
+            if (usernameToFollow.compare(username) == 0)
+            {
+                Reply(sender, Message::MakeError(lastSeqn, "You can't follow yourself"));
+                return;
+            }
+
             if (profile)
             {
                 if (!profile->AddFollower(username))
