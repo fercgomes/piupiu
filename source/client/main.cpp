@@ -70,6 +70,11 @@ void ListeningHandler(Client* client)
             {
                 client->Post(parsedInput[1]);
             }
+            else if (parsedInput[0].compare("INFO") == 0)
+            {
+                //
+                client->Info();
+            }
         }
         catch (const std::invalid_argument& e)
         {

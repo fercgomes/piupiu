@@ -35,6 +35,7 @@ public:
 
     int FollowUser(std::string profile);
     int Post(std::string message);
+    int Info();
 
     void SetProfileHandle(std::string profileHandle);
     void SetServerAddress(std::string serverAddress);

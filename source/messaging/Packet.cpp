@@ -116,6 +116,16 @@ Packet MakeInfo(uint64_t lastSeqn, std::string message)
     return p;
 }
 
+Packet MakeRequestUserInfo(uint64_t lastSeqn)
+{
+    Packet p = {.type      = PACKET_REQUEST_USER_INFO,
+                .seqn      = lastSeqn + 1,
+                .length    = 0,
+                .timestamp = std::time(nullptr)};
+
+    return p;
+}
+
 const char* TypeToStr(uint16_t type)
 {
     switch (type)

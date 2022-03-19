@@ -14,6 +14,7 @@
 #define PACKET_NOTIFICATION 6
 #define PACKET_ERROR 7
 #define PACKET_INFO 8
+#define PACKET_REQUEST_USER_INFO 9
 
 #define PACKET_MAX_PAYLOAD_LEN 512
 
@@ -44,6 +45,7 @@ Packet MakeSendCommand(uint64_t lastSeqn, std::string message);
 Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string sender);
 Packet MakeError(uint64_t lastSeqn, std::string reason);
 Packet MakeInfo(uint64_t lastSeqn, std::string message);
+Packet MakeRequestUserInfo(uint64_t lastSeqn);
 
 const char* TypeToStr(uint16_t);
 

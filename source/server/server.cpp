@@ -288,6 +288,43 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         }
         break;
     }
+    case PACKET_REQUEST_USER_INFO:
+    {
+        std::string       username;
+        std::string       response;
+        std::stringstream ss;
+
+        if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
+        {
+            Profile* profile = profileManager->GetProfileByName(username);
+            if (profile)
+            {
+                auto users = profileManager->GetConnectedUsers(profile);
+
+                ss << "\nUsername: " << profile->GetHandle();
+                ss << "\nFollowers: " << profile->GetFollowers().size();
+
+                if (users.size() > 0)
+                {
+                    ss << "\nConnected users: \n";
+                    for (auto user : users)
+                    {
+                        ss << user << ",";
+                    }
+                    ss << "\n";
+                }
+                else
+                {
+                    ss << "\nNo users connected.\n";
+                }
+
+                response = ss.str();
+                Reply(sender, Message::MakeInfo(lastSeqn, response));
+            }
+        }
+
+        break;
+    }
     default:
         std::cerr << "Server should receive this message type" << std::endl;
         Reply(sender, Message::MakeError(lastSeqn, "Invalid command"));

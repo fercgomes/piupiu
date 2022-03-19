@@ -158,6 +158,8 @@ int Client::Post(std::string message)
     }
 }
 
+int Client::Info() { this->SendMessageToServer(Message::MakeRequestUserInfo(lastSentSeqn)); }
+
 void Client::SetProfileHandle(std::string profileHandle) { this->profileHandle = profileHandle; }
 
 void Client::SetServerAddress(std::string serverAddress) { this->serverAddress = serverAddress; }
