@@ -42,9 +42,6 @@ void Client::Listen()
 
         if (n > 0)
         {
-            printf("Server replied:\n");
-            printf("type: %s\n", Message::TypeToStr(p.type));
-
             switch (p.type)
             {
             case PACKET_ACCEPT_CONN_CMD:
@@ -56,9 +53,14 @@ void Client::Listen()
                 Shutdown();
                 break;
             case PACKET_NOTIFICATION:
-                std::cout << "==============" << std::endl;
+                std::cout << "=====INCOMING MESSAGE=====" << std::endl;
                 std::cout << p.payload << std::endl;
-                std::cout << "==============" << std::endl;
+                std::cout << "==========================" << std::endl;
+                break;
+            case PACKET_ERROR:
+                std::cout << "=====SERVER ERROR=====" << std::endl;
+                std::cout << p.payload << std::endl;
+                std::cout << "============ =========" << std::endl;
                 break;
             default:
                 std::cerr << "Client should not receive this message" << std::endl;
@@ -132,8 +134,6 @@ int Client::Connect(std::string profileHandle, std::string serverAddress, int se
 
 int Client::FollowUser(std::string profile)
 {
-    std::cout << "Seguindo usuário " << profile << std::endl;
-
     this->SendMessageToServer(Message::MakeFollowCommand(lastSentSeqn, profile));
 
     return 0;
@@ -143,7 +143,6 @@ int Client::Post(std::string message)
 {
     if (message.length() <= 128)
     {
-        std::cout << "Enviando mensagem" << std::endl;
         this->SendMessageToServer(Message::MakeSendCommand(lastSentSeqn, message));
         return 0;
     }

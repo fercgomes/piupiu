@@ -36,7 +36,6 @@ int ProfileManager::ReadProfilesFromFile()
 {
     std::fstream                    profilesFile;
     std::map<std::string, Profile*> profilesMap;
-    std::cout << "Reading profiles from file" << std::endl;
 
     profilesFile.open(PROFILES_FILENAME, std::ios::in);
 
@@ -44,14 +43,12 @@ int ProfileManager::ReadProfilesFromFile()
     {
         int numProfiles;
         profilesFile >> numProfiles;
-        std::cout << numProfiles << std::endl;
 
         // Read profiles
         std::string profileName;
         for (int i = 0; i < numProfiles; i++)
         {
             profilesFile >> profileName;
-            std::cout << profileName << std::endl;
             Profile* prof = new Profile(profileName, this);
             profilesMap.insert(std::pair<std::string, Profile*>(profileName, prof));
             profiles.push_back(prof);
@@ -61,11 +58,9 @@ int ProfileManager::ReadProfilesFromFile()
         while (profilesFile.good())
         {
             profilesFile >> line;
-            std::cout << line << std::endl;
             auto        splits   = split(line, ',');
             std::string user     = splits[0];
             std::string toFollow = splits[1];
-            std::cout << user << " " << toFollow << std::endl;
 
             Profile* userPtr = profilesMap.at(user);
             // Profile* toFollowPtr = profiles.at(toFollow);
@@ -74,12 +69,7 @@ int ProfileManager::ReadProfilesFromFile()
             userPtr->AddFollower(toFollow, false);
         }
 
-        // Copy to profiles
-        // for (auto it = profilesMap.begin(); it != profilesMap.end(); it++)
-        // {
-        //     profiles.push_back(it->second);
-        // }
-
+        std::cout << "Read " << numProfiles << " profiles from disk." << std::endl;
         return numProfiles;
     }
     else

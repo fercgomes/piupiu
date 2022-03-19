@@ -12,6 +12,7 @@
 #define PACKET_FOLLOW_CMD 4
 #define PACKET_SEND_CMD 5
 #define PACKET_NOTIFICATION 6
+#define PACKET_ERROR 7
 
 #define PACKET_MAX_PAYLOAD_LEN 512
 
@@ -40,6 +41,7 @@ Packet MakeRejectConnCommand(uint64_t lastSeqn);
 Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle);
 Packet MakeSendCommand(uint64_t lastSeqn, std::string message);
 Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string sender);
+Packet MakeError(uint64_t lastSeqn, std::string reason);
 
 const char* TypeToStr(uint16_t);
 

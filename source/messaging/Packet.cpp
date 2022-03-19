@@ -88,6 +88,20 @@ Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string send
     return p;
 }
 
+Packet MakeError(uint64_t lastSeqn, std::string reason)
+{
+    Packet p = {.type      = PACKET_NOTIFICATION,
+                .seqn      = lastSeqn + 1,
+                .length    = reason.length(),
+                .timestamp = std::time(nullptr)};
+
+    std::string output = "Error: " + reason;
+
+    strcpy(p.payload, output.c_str());
+
+    return p;
+}
+
 const char* TypeToStr(uint16_t type)
 {
     switch (type)
@@ -116,6 +130,8 @@ const char* TypeToStr(uint16_t type)
     {
         return "PACKET_SEND_CMD";
     }
+    case PACKET_ERROR:
+        return "PACKET_ERROR";
     case PACKET_NOTIFICATION:
         return "PACKET_NOTIFICATION";
     }

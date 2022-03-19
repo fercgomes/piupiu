@@ -8,6 +8,7 @@
 
 #include <Packet.hpp>
 #include "PendingNotification.hpp"
+#include "ProfileManager.hpp"
 #include "SessionManager.hpp"
 
 class Server
@@ -29,6 +30,7 @@ private:
 
     std::mutex notificationQueueMutex;
 
+    ProfileManager* profileManager;
     SessionManager* sessionManager;
 
     void Listen();

@@ -13,13 +13,25 @@ Profile::Profile(std::string handle, ProfileManager* manager) : handle(handle), 
 std::string Profile::GetHandle() const { return handle; }
 Session*    Profile::GetSession() const { return session; }
 
-void Profile::AddFollower(std::string userHandle, bool saveDisk)
+int Profile::AddFollower(std::string userHandle, bool saveDisk)
 {
     auto pProfile = manager->GetProfileByName(userHandle);
+
     if (pProfile)
     {
-        followers.push_back(pProfile);
-        if (saveDisk) manager->Sync();
+        // Check if it's already a follower
+        auto currentFollowerIt = std::find(followers.begin(), followers.end(), pProfile);
+        if (currentFollowerIt == followers.end())
+        {
+            // Not following
+            followers.push_back(pProfile);
+            if (saveDisk) manager->Sync();
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
     }
     else
     {

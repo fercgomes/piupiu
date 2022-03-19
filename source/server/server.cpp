@@ -2,9 +2,11 @@
 
 #include "server.hpp"
 #include <Packet.hpp>
+#include <algorithm>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <iostream>
+#include <sstream>
 #include <string.h>
 #include <string>
 #include "PendingNotification.hpp"
@@ -13,7 +15,8 @@ uint64_t Server::lastSeqn;
 
 Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress), bindPort(bindPort)
 {
-    sessionManager = new SessionManager(new ProfileManager());
+    profileManager = new ProfileManager();
+    sessionManager = new SessionManager(profileManager);
     lastSeqn       = 0;
 
     // Inicializar socket
@@ -28,7 +31,6 @@ Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress)
     this->socketAddress.sin_addr.s_addr = inet_addr(this->bindAddress.c_str());
 
     // Fazer o bind do socket
-    // TODO: verificar return code
     int r = bind(this->socketDescr, (struct sockaddr*)&this->socketAddress,
                  sizeof(this->socketAddress));
 
@@ -82,14 +84,17 @@ void Server::PendingNotificationWorker()
 
         if (!notificationQueue.empty())
         {
+            // Pop notification from queue
             auto notification = notificationQueue.front();
             notificationQueue.pop();
-            Session* session = notification.recipientSession;
-            auto     sockets = session->sockets;
-            if (sockets.size() > 0)
+
+            Profile* recipient = notification.recipient;
+            Session* session   = recipient->GetSession();
+
+            if (session && session->sockets.size() > 0)
             {
                 std::cout << "Enviando notificação" << std::endl;
-                for (auto socket : sockets)
+                for (auto socket : session->sockets)
                 {
                     Reply(socket, Message::MakeNotification(lastSeqn, notification.body,
                                                             notification.senderUsername));
@@ -106,8 +111,10 @@ void Server::PendingNotificationWorker()
 
 void Server::Start()
 {
+    // Spawn listening thread
     this->listeningThread = std::make_unique<std::thread>(&Server::Listen, this);
 
+    // Spawn notificationw worker thread
     this->pendingNotificationWorkerThread =
         std::make_unique<std::thread>(&Server::PendingNotificationWorker, this);
 
@@ -123,7 +130,11 @@ void Server::Stop()
 
 void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
 {
-    std::thread::id thisId = std::this_thread::get_id();
+    std::thread::id   thisId = std::this_thread::get_id();
+    std::stringstream ss;
+    ss << inet_ntoa(sender.sin_addr) << ":" << sender.sin_port;
+    std::string host = ss.str();
+
     std::cout << "Handling message (threadId: " << thisId << ")" << std::endl;
     // printf("type=%u\nseqn=%u\ntimestamp=%u\nlen=%u\npayload=%s\n", message.type, message.seqn,
     // message.timestamp, message.length, message.payload);
@@ -132,32 +143,26 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     {
     case PACKET_CONNECT_CMD:
     {
-        char* user = message.payload;
-        char  username[100];
-        memset(username, 0, 100);
-        strcpy(username, message.payload);
+        char*       user = message.payload;
+        std::string username(message.payload);
 
-        std::string username2(username);
+        std::cout << "Connect request for " << username << " (" << host << ")." << std::endl;
 
-        auto     profileManager = sessionManager->GetProfileManager();
-        Profile* profile;
-        profile = profileManager->GetProfileByName(username2);
-        std::cout << "Aqui\n";
-        std::cout << "Profile ptr:" << profile << std::endl;
+        Profile* profile = profileManager->GetProfileByName(username);
 
         if (profile)
         { std::cout << "Profile for " << profile->GetHandle() << " found." << std::endl; }
         else
         {
-            std::cout << "Profile for " << username2 << " not found." << std::endl;
-            profile = profileManager->NewProfile(username2);
+            std::cout << "Profile for " << username << " not found." << std::endl;
+            profile = profileManager->NewProfile(username);
         }
 
         auto session = sessionManager->StartSession(profile, sender);
 
         if (session)
         {
-            std::cout << username << " connected" << std::endl;
+            std::cout << "Session for " << username << " created." << std::endl;
             profile->SetSession(session);
             Reply(sender, Message::MakeAcceptConnCommand(lastSeqn));
         }
@@ -173,82 +178,70 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     {
         char*       user = message.payload;
         std::string username(user);
-        printf("Disconnect user %s\n", user);
 
-        auto     profileManager = sessionManager->GetProfileManager();
-        Profile* profile;
-        profile = profileManager->GetProfileByName(username);
+        std::cout << "Disconnect request for " << username << " (" << host << ")." << std::endl;
+
+        Profile* profile = profileManager->GetProfileByName(username);
         if (profile)
         {
             int ended = sessionManager->EndSession(profile, sender);
-            printf("Connections ended: %d\n", ended);
+            std::cout << "Connections ended: " << ended << std::endl;
         }
         else
         {
             std::cout << "No profile found to disconnect" << std::endl;
+            Reply(sender, Message::MakeError(lastSeqn, "Profile not found"));
         }
 
-        break;
-    }
-    case PACKET_ACCEPT_CONN_CMD:
-    {
-        std::cout << "Accept conn message received" << std::endl;
-        break;
-    }
-    case PACKET_REJECT_CONN_CMD:
-    {
-        std::cout << "Reject conn message received" << std::endl;
         break;
     }
     case PACKET_FOLLOW_CMD:
     {
-        char*       usernameToFollow = message.payload;
+        std::string usernameToFollow(message.payload);
         std::string username;
+
         if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
         {
-            // // TODO: e se nao achar?
+            Profile* profile = profileManager->GetProfileByName(usernameToFollow);
 
-            Profile* profile =
-                sessionManager->GetProfileManager()->GetProfileByName(usernameToFollow);
             if (profile)
             {
-                profile->AddFollower(username);
-                printf("Follow %s\n", message.payload);
+                if (!profile->AddFollower(username))
+                {
+                    Reply(sender,
+                          Message::MakeError(lastSeqn, "You're already following this user"));
+                }
             }
             else
             {
-                printf("Não achou profile\n");
+                std::cerr << "Profile " << usernameToFollow << " not found." << std::endl;
+                Reply(sender, Message::MakeError(lastSeqn, "Profile not found"));
             }
         }
         else
         {
-            printf("Não achou user\n");
+            std::cerr << "You're not authenticated" << std::endl;
+            Reply(sender, Message::MakeError(lastSeqn, "Not authenticated"));
         }
         break;
     }
     case PACKET_SEND_CMD:
     {
-        std::cout << "Send message received" << std::endl;
         std::string username;
+
         if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
         {
-            Profile* profile = sessionManager->GetProfileManager()->GetProfileByName(username);
+            std::cout << "Send message request from " << username << " (" << host << ")."
+                      << std::endl;
+
+            Profile* profile = profileManager->GetProfileByName(username);
             if (profile)
             {
-                std::cout << "Sending message from " << profile->GetHandle() << std::endl;
                 auto followers = profile->GetFollowers();
                 for (auto follower : followers)
                 {
-                    std::cout << "To: " << follower->GetHandle() << std::endl;
-                    // auto sockets = sessionManager->GetUserAddresses(follower->GetHandle());
-                    // for (auto socket : sockets)
-                    // {
-                    //     Reply(socket, Message::MakeNotification(
-                    //                       lastSeqn, std::string(message.payload), username));
-                    // }
-                    // inserir numa fila de notificação
                     std::string         body(message.payload);
-                    PendingNotification notification(username, body, follower->GetSession());
+                    PendingNotification notification(username, body, follower);
 
                     {
                         const std::lock_guard<std::mutex> lock(notificationQueueMutex);
@@ -258,19 +251,29 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             }
             else
             {
-                printf("Não achou profile\n");
+                std::cerr << host << " is not authenticated." << std::endl;
+                Reply(sender, Message::MakeError(lastSeqn, "Not authenticated"));
             }
         }
         else
         {
-            printf("Não achou user\n");
+            std::cerr << host << " is not authenticated." << std::endl;
+            Reply(sender, Message::MakeError(lastSeqn, "Not authenticated"));
         }
         break;
     }
+    default:
+        std::cerr << "Server should receive this message type" << std::endl;
+        Reply(sender, Message::MakeError(lastSeqn, "Invalid command"));
+        break;
     }
 
     // Finalizando thread
     // TODO: remover thread da lista, ou se pa nem precisa de uma lista com as threads
+    // auto it = std::find_if(messageHandlerThreads.begin(), messageHandlerThreads.end(),
+    //                        [thisId](std::thread& t) { return t.get_id() == thisId; });
+
+    // if (it != messageHandlerThreads.end()) { messageHandlerThreads.erase(it); }
 }
 
 void Server::Reply(struct sockaddr_in sender, Message::Packet message)

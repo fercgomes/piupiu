@@ -64,8 +64,6 @@ void ListeningHandler(Client* client)
         try
         {
             auto parsedInput = ParseInput(commandInput);
-            std::cout << parsedInput[0] << std::endl;
-            std::cout << parsedInput[1] << std::endl;
 
             if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
             else if (parsedInput[0].compare("SEND") == 0)
