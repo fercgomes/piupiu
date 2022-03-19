@@ -90,12 +90,26 @@ Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string send
 
 Packet MakeError(uint64_t lastSeqn, std::string reason)
 {
-    Packet p = {.type      = PACKET_NOTIFICATION,
+    Packet p = {.type      = PACKET_ERROR,
                 .seqn      = lastSeqn + 1,
                 .length    = reason.length(),
                 .timestamp = std::time(nullptr)};
 
     std::string output = "Error: " + reason;
+
+    strcpy(p.payload, output.c_str());
+
+    return p;
+}
+
+Packet MakeInfo(uint64_t lastSeqn, std::string message)
+{
+    Packet p = {.type      = PACKET_INFO,
+                .seqn      = lastSeqn + 1,
+                .length    = message.length(),
+                .timestamp = std::time(nullptr)};
+
+    std::string output = message;
 
     strcpy(p.payload, output.c_str());
 
@@ -134,6 +148,8 @@ const char* TypeToStr(uint16_t type)
         return "PACKET_ERROR";
     case PACKET_NOTIFICATION:
         return "PACKET_NOTIFICATION";
+    case PACKET_INFO:
+        return "PACKET_INFO";
     }
 }
 

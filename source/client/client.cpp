@@ -8,15 +8,17 @@
 #include <sys/types.h>
 #include <thread>
 #include <unistd.h>
+#include "utils.hpp"
 
 #define BUFFER_SIZE 1024
 
 uint64_t Client::lastSentSeqn;
 
 Client::Client(std::string profileHandle, std::string serverAddress, int serverPort)
-    : profileHandle(profileHandle), serverAddress(serverAddress), serverPort(serverPort)
+    : serverAddress(serverAddress), serverPort(serverPort)
 {
-    lastSentSeqn = 0;
+    this->profileHandle = trim_copy(profileHandle);
+    lastSentSeqn        = 0;
 }
 
 Client::Client() { lastSentSeqn = 0; }
@@ -61,6 +63,9 @@ void Client::Listen()
                 std::cout << "=====SERVER ERROR=====" << std::endl;
                 std::cout << p.payload << std::endl;
                 std::cout << "============ =========" << std::endl;
+                break;
+            case PACKET_INFO:
+                std::cout << "[SERVER] " << p.payload << std::endl;
                 break;
             default:
                 std::cerr << "Client should not receive this message" << std::endl;

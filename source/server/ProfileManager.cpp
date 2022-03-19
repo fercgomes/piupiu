@@ -5,6 +5,7 @@
 #include <map>
 #include <mutex>
 #include <sstream>
+#include "Session.hpp"
 
 #define PROFILES_FILENAME "profiles.dat"
 
@@ -55,7 +56,7 @@ int ProfileManager::ReadProfilesFromFile()
         }
 
         std::string line;
-        while (profilesFile.good())
+        while (!profilesFile.eof())
         {
             profilesFile >> line;
             auto        splits   = split(line, ',');
@@ -146,4 +147,40 @@ Profile* ProfileManager::GetProfileByName(std::string userHandle)
     {
         return nullptr;
     }
+}
+
+std::vector<std::string> ProfileManager::GetConnectedUsers(Profile* exclude)
+{
+    std::vector<std::string> temp;
+    for (auto user : profiles)
+    {
+        if (exclude && user != exclude)
+        {
+            Session* session = user->GetSession();
+            if (session && session->sockets.size() > 0) { temp.push_back(user->GetHandle()); }
+        }
+    }
+
+    return temp;
+}
+
+std::vector<struct sockaddr_in> ProfileManager::GetConnectedSockets(Profile* exclude)
+{
+    std::vector<struct sockaddr_in> temp;
+    for (auto user : profiles)
+    {
+        if (exclude && user != exclude)
+        {
+            Session* session = user->GetSession();
+            if (session && session->sockets.size() > 0)
+            {
+                for (auto socket : session->sockets)
+                {
+                    temp.push_back(socket);
+                }
+            }
+        }
+    }
+
+    return temp;
 }

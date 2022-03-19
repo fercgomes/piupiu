@@ -164,7 +164,23 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         {
             std::cout << "Session for " << username << " created." << std::endl;
             profile->SetSession(session);
+
+            // Accept connection
             Reply(sender, Message::MakeAcceptConnCommand(lastSeqn));
+
+            // Show connected users
+            auto              users = profileManager->GetConnectedUsers(profile);
+            std::stringstream ss;
+            for (auto user : users)
+            {
+                ss << user << ",";
+            }
+            std::string usersStr = "Connected users: " + ss.str();
+
+            Reply(sender, Message::MakeInfo(lastSeqn, usersStr));
+
+            // Broadcast connect notification
+            Broadcast(Message::MakeInfo(lastSeqn, username + " has connected."), profile);
         }
         else
         {
@@ -185,6 +201,10 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         if (profile)
         {
             int ended = sessionManager->EndSession(profile, sender);
+
+            // Broadcast connect notification
+            Broadcast(Message::MakeInfo(lastSeqn, username + " has disconnected."), profile);
+
             std::cout << "Connections ended: " << ended << std::endl;
         }
         else
@@ -292,5 +312,14 @@ void Server::Reply(struct sockaddr_in sender, Message::Packet message)
     else
     {
         printf("Replied to client succesfully\n");
+    }
+}
+
+void Server::Broadcast(Message::Packet message, Profile* exclude)
+{
+    auto sockets = profileManager->GetConnectedSockets(exclude);
+    for (auto socket : sockets)
+    {
+        Reply(socket, message);
     }
 }

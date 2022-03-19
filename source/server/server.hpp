@@ -38,6 +38,7 @@ private:
     void ParseInput(const char* buffer);
     void MessageHandler(Message::Packet message, struct sockaddr_in sender);
     void Reply(struct sockaddr_in sender, Message::Packet message);
+    void Broadcast(Message::Packet message, Profile* exclude = nullptr);
 
 public:
     Server(std::string bindAddress, int bindPort);

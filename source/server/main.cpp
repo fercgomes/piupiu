@@ -3,7 +3,7 @@
 
 int main()
 {
-    Server* server = new Server("127.0.0.1", 5000);
+    Server* server = new Server("0.0.0.0", 5000);
 
     server->Start();
 
