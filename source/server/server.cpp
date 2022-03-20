@@ -237,6 +237,11 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                     Reply(sender,
                           Message::MakeError(++lastSeqn, "You're already following this user"));
                 }
+                else
+                {
+                    Reply(sender,
+                          Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
+                }
             }
             else
             {
@@ -274,6 +279,8 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                         notificationQueue.push(notification);
                     }
                 }
+
+                Reply(sender, Message::MakeInfo(++lastSeqn, "Message sent."));
             }
             else
             {
