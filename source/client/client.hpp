@@ -1,7 +1,11 @@
 #pragma once
 
+#include <list>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <Packet.hpp>
 
@@ -17,12 +21,24 @@ private:
     int             socketDescr;
     static uint64_t lastSentSeqn;
 
-    bool                         connected       = false;
-    bool                         isListening     = true;
+    bool connected   = false;
+    bool isListening = true;
+
     std::unique_ptr<std::thread> listeningThread = nullptr;
+    std::unique_ptr<std::thread> reorderThread   = nullptr;
+
+    std::mutex packetQueueMutex;
+
+    // Lista para recebimento dos packets caso necessario
+    std::vector<Message::Packet> PacketList;
+
+    // Fila para ordenar os packets pelo numero de sequencia
+    std::queue<Message::Packet> PacketQueue;
 
     void Listen();
-    int  SendMessageToServer(Message::Packet message);
+    void Reorder();
+
+    int SendMessageToServer(Message::Packet message);
 
 public:
     Client(std::string profile, std::string serverAddress, int serverPort);
