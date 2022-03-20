@@ -20,8 +20,19 @@ private:
     bool                         connected       = false;
     bool                         isListening     = true;
     std::unique_ptr<std::thread> listeningThread = nullptr;
+    std::unique_ptr<std::thread> reorderThread = nullptr;
+
+    std::mutex packetQueueMutex;
+
+    //Lista para recebimento dos packets caso necessario
+    std::list<Packet> PacketList;
+
+    //Fila para ordenar os packets pelo numero de sequencia
+    std::queue<Packet> PacketQueue;
 
     void Listen();
+    void Reorder();
+
     int  SendMessageToServer(Message::Packet message);
 
 public:

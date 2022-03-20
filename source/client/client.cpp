@@ -58,7 +58,12 @@ void Client::Listen()
                 break;
             case PACKET_NOTIFICATION:
                 std::cout << "=====INCOMING MESSAGE=====" << std::endl;
-                std::cout << p.payload << std::endl;
+                //Print the received packages
+                while (PacketQueue.isEmpty == false)
+                {
+                    std::cout << PacketQueue.front().payload << std::endl;
+                    PacketQueue.pop();
+                }
                 std::cout << "==========================" << std::endl;
                 break;
             case PACKET_ERROR:
@@ -124,6 +129,12 @@ int Client::Connect()
         // printf("%d\n", r);
 
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
+
+        //Spawn the reorder buffer thread here
+        this->reorderThread = std::make_unique<std::thread>(&Client::Reorder, this);
+
+        while (1) 
+            ;
     }
 
     return 0;
@@ -179,4 +190,27 @@ void Client::HelpInfo()
     std::cout << std::endl;
 }
 
+void Client::Reorder()
+{
+    //Create a mutex to manage the packet arrival
+    const std::lock_guard<std::mutex> lock(packetQueueMutex);
+
+    //We need to create a thread to clear buffer and reorder the queue if we need it
+    // Adding the packet into a list
+    PacketList.push_back(p)
+
+    //Order the list
+    sort(PacketList.begin(), PacketList.end(),
+        [](Message::Packet& a, Message::Packet& b) { return a.seqn < b.seqn; });
+                
+    //Add the ordered list into the queue
+    for(int i = 0; i < PacketList.size(); i++)
+    { 
+        PacketQueue.enqueue(PacketList[i]);
+    }
+
+    sleep(500);
+}
+
 bool Client::IsConnected() const { return connected; }
+
