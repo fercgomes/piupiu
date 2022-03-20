@@ -19,6 +19,8 @@ Client::Client(std::string profileHandle, std::string serverAddress, int serverP
 {
     this->profileHandle = trim_copy(profileHandle);
     lastSentSeqn        = 0;
+
+    HelpInfo();
 }
 
 Client::Client() { lastSentSeqn = 0; }
@@ -165,3 +167,16 @@ void Client::SetProfileHandle(std::string profileHandle) { this->profileHandle =
 void Client::SetServerAddress(std::string serverAddress) { this->serverAddress = serverAddress; }
 
 void Client::SetServerPort(int port) { this->serverPort = port; }
+
+void Client::HelpInfo()
+{
+    std::cout << "=== UFRGS 2022 ===" << std::endl;
+    std::cout << "Comandos disponíveis:" << std::endl;
+    std::cout << "FOLLOW username -> segue o usuário 'username'" << std::endl;
+    std::cout << "SEND msg -> envia a mensagem 'msg' para todos os seus seguidores" << std::endl;
+    std::cout << "INFO a -> mostra informações" << std::endl;
+    std::cout << "Ctrl + C -> termina o client" << std::endl;
+    std::cout << std::endl;
+}
+
+bool Client::IsConnected() const { return connected; }

@@ -40,4 +40,8 @@ public:
     void SetProfileHandle(std::string profileHandle);
     void SetServerAddress(std::string serverAddress);
     void SetServerPort(int port);
+
+    void HelpInfo();
+
+    bool IsConnected() const;
 };

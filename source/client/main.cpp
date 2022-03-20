@@ -18,6 +18,12 @@
 
 sig_atomic_t signaled = 0;
 
+void HelpUsage()
+{
+    std::cout << "Uso correto:" << std::endl;
+    std::cout << "./Client usuario server_ip server_port" << std::endl;
+}
+
 std::array<std::string, 2> ParseInput(std::string input)
 {
     int delimiterIndex = -1;
@@ -65,15 +71,22 @@ void ListeningHandler(Client* client)
         {
             auto parsedInput = ParseInput(commandInput);
 
-            if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
-            else if (parsedInput[0].compare("SEND") == 0)
+            if (client->IsConnected())
             {
-                client->Post(parsedInput[1]);
+                if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
+                else if (parsedInput[0].compare("SEND") == 0)
+                {
+                    client->Post(parsedInput[1]);
+                }
+                else if (parsedInput[0].compare("INFO") == 0)
+                {
+                    //
+                    client->Info();
+                }
             }
-            else if (parsedInput[0].compare("INFO") == 0)
+            else
             {
-                //
-                client->Info();
+                std::cerr << "Você não está conectado." << std::endl;
             }
         }
         catch (const std::invalid_argument& e)
@@ -151,6 +164,7 @@ int main(int argc, const char** argv)
         return gui->run();
 #else
         std::cout << "Argumentos inválidos." << std::endl;
+        HelpUsage();
 #endif
     }
 }
