@@ -73,3 +73,6 @@ Para a comunicação entre o _client_ e o _server_, foi implementado uma estrutu
 A estrutura do pacote também tem número de sequência, um _payload_ e o seu tamanho, e o _timestamp_.
 
 # Desafios
+
+1. Garantir a chegada dos pacotes UDP na ordem de envio correta
+2. Gravar as notificações para serem enviadas posteriormente em caso de um usuário estar deslogado
