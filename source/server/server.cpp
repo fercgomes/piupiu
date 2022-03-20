@@ -96,7 +96,7 @@ void Server::PendingNotificationWorker()
                 std::cout << "Enviando notificação" << std::endl;
                 for (auto socket : session->sockets)
                 {
-                    Reply(socket, Message::MakeNotification(lastSeqn, notification.body,
+                    Reply(socket, Message::MakeNotification(++lastSeqn, notification.body,
                                                             notification.senderUsername));
                 }
             }
@@ -166,7 +166,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             profile->SetSession(session);
 
             // Accept connection
-            Reply(sender, Message::MakeAcceptConnCommand(lastSeqn));
+            Reply(sender, Message::MakeAcceptConnCommand(++lastSeqn));
 
             // Show connected users
             auto              users = profileManager->GetConnectedUsers(profile);
@@ -177,15 +177,15 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             }
             std::string usersStr = "Connected users: " + ss.str();
 
-            Reply(sender, Message::MakeInfo(lastSeqn, usersStr));
+            Reply(sender, Message::MakeInfo(++lastSeqn, usersStr));
 
             // Broadcast connect notification
-            Broadcast(Message::MakeInfo(lastSeqn, username + " has connected."), profile);
+            Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
         }
         else
         {
             std::cout << "Max connection reach for " << username << std::endl;
-            Reply(sender, Message::MakeRejectConnCommand(lastSeqn));
+            Reply(sender, Message::MakeRejectConnCommand(++lastSeqn));
         }
 
         break;
@@ -203,14 +203,14 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             int ended = sessionManager->EndSession(profile, sender);
 
             // Broadcast connect notification
-            Broadcast(Message::MakeInfo(lastSeqn, username + " has disconnected."), profile);
+            Broadcast(Message::MakeInfo(++lastSeqn, username + " has disconnected."), profile);
 
             std::cout << "Connections ended: " << ended << std::endl;
         }
         else
         {
             std::cout << "No profile found to disconnect" << std::endl;
-            Reply(sender, Message::MakeError(lastSeqn, "Profile not found"));
+            Reply(sender, Message::MakeError(++lastSeqn, "Profile not found"));
         }
 
         break;
@@ -226,7 +226,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
 
             if (usernameToFollow.compare(username) == 0)
             {
-                Reply(sender, Message::MakeError(lastSeqn, "You can't follow yourself"));
+                Reply(sender, Message::MakeError(++lastSeqn, "You can't follow yourself"));
                 return;
             }
 
@@ -235,19 +235,19 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                 if (!profile->AddFollower(username))
                 {
                     Reply(sender,
-                          Message::MakeError(lastSeqn, "You're already following this user"));
+                          Message::MakeError(++lastSeqn, "You're already following this user"));
                 }
             }
             else
             {
                 std::cerr << "Profile " << usernameToFollow << " not found." << std::endl;
-                Reply(sender, Message::MakeError(lastSeqn, "Profile not found"));
+                Reply(sender, Message::MakeError(++lastSeqn, "Profile not found"));
             }
         }
         else
         {
             std::cerr << "You're not authenticated" << std::endl;
-            Reply(sender, Message::MakeError(lastSeqn, "Not authenticated"));
+            Reply(sender, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -278,13 +278,13 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             else
             {
                 std::cerr << host << " is not authenticated." << std::endl;
-                Reply(sender, Message::MakeError(lastSeqn, "Not authenticated"));
+                Reply(sender, Message::MakeError(++lastSeqn, "Not authenticated"));
             }
         }
         else
         {
             std::cerr << host << " is not authenticated." << std::endl;
-            Reply(sender, Message::MakeError(lastSeqn, "Not authenticated"));
+            Reply(sender, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -319,7 +319,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                 }
 
                 response = ss.str();
-                Reply(sender, Message::MakeInfo(lastSeqn, response));
+                Reply(sender, Message::MakeInfo(++lastSeqn, response));
             }
         }
 
@@ -327,7 +327,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     }
     default:
         std::cerr << "Server should receive this message type" << std::endl;
-        Reply(sender, Message::MakeError(lastSeqn, "Invalid command"));
+        Reply(sender, Message::MakeError(++lastSeqn, "Invalid command"));
         break;
     }
 

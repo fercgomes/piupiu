@@ -59,6 +59,8 @@ int ProfileManager::ReadProfilesFromFile()
         while (!profilesFile.eof())
         {
             profilesFile >> line;
+            if (line.empty()) break;
+
             auto        splits   = split(line, ',');
             std::string user     = splits[0];
             std::string toFollow = splits[1];
