@@ -76,6 +76,7 @@ void ListeningHandler(Client* client)
                 if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
                 else if (parsedInput[0].compare("SEND") == 0)
                 {
+                    std::cout << "ashjksdhfa\n";
                     client->Post(parsedInput[1]);
                 }
                 else if (parsedInput[0].compare("INFO") == 0)

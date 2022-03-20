@@ -57,14 +57,19 @@ void Client::Listen()
                 Shutdown();
                 break;
             case PACKET_NOTIFICATION:
-                std::cout << "=====INCOMING MESSAGE=====" << std::endl;
-                //Print the received packages
-                while (PacketQueue.isEmpty == false)
+                // std::cout << "=====INCOMING MESSAGE=====" << std::endl;
+                // Print the received packages
+                // while (PacketQueue.empty() == false)
+                // {
+                //     std::cout << PacketQueue.front().payload << std::endl;
+                //     PacketQueue.pop();
+                // }
                 {
-                    std::cout << PacketQueue.front().payload << std::endl;
-                    PacketQueue.pop();
+                    const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
+                    // PacketQueue.push(p);
+                    PacketList.push_back(p);
                 }
-                std::cout << "==========================" << std::endl;
+                // std::cout << "==========================" << std::endl;
                 break;
             case PACKET_ERROR:
                 std::cout << "=====SERVER ERROR=====" << std::endl;
@@ -105,7 +110,7 @@ int Client::SendMessageToServer(Message::Packet message)
 
 void Client::Shutdown()
 {
-    this->SendMessageToServer(Message::MakeDisconnectCommand(lastSentSeqn, this->profileHandle));
+    this->SendMessageToServer(Message::MakeDisconnectCommand(++lastSentSeqn, this->profileHandle));
 
     close(this->socketDescr);
     this->isListening = false;
@@ -125,16 +130,13 @@ int Client::Connect()
         std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
 
         int r = this->SendMessageToServer(
-            Message::MakeConnectCommand(lastSentSeqn, this->profileHandle));
+            Message::MakeConnectCommand(++lastSentSeqn, this->profileHandle));
         // printf("%d\n", r);
 
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
 
-        //Spawn the reorder buffer thread here
+        // Spawn the reorder buffer thread here
         this->reorderThread = std::make_unique<std::thread>(&Client::Reorder, this);
-
-        while (1) 
-            ;
     }
 
     return 0;
@@ -152,7 +154,7 @@ int Client::Connect(std::string profileHandle, std::string serverAddress, int se
 
 int Client::FollowUser(std::string profile)
 {
-    this->SendMessageToServer(Message::MakeFollowCommand(lastSentSeqn, profile));
+    this->SendMessageToServer(Message::MakeFollowCommand(++lastSentSeqn, profile));
 
     return 0;
 }
@@ -161,7 +163,7 @@ int Client::Post(std::string message)
 {
     if (message.length() <= 128)
     {
-        this->SendMessageToServer(Message::MakeSendCommand(lastSentSeqn, message));
+        this->SendMessageToServer(Message::MakeSendCommand(++lastSentSeqn, message));
         return 0;
     }
     else
@@ -171,7 +173,7 @@ int Client::Post(std::string message)
     }
 }
 
-int Client::Info() { this->SendMessageToServer(Message::MakeRequestUserInfo(lastSentSeqn)); }
+int Client::Info() { this->SendMessageToServer(Message::MakeRequestUserInfo(++lastSentSeqn)); }
 
 void Client::SetProfileHandle(std::string profileHandle) { this->profileHandle = profileHandle; }
 
@@ -192,25 +194,28 @@ void Client::HelpInfo()
 
 void Client::Reorder()
 {
-    //Create a mutex to manage the packet arrival
-    const std::lock_guard<std::mutex> lock(packetQueueMutex);
+    while (true)
+    {
+        {
+            // Create a mutex to manage the packet arrival
+            const std::lock_guard<std::mutex> lock(packetQueueMutex);
 
-    //We need to create a thread to clear buffer and reorder the queue if we need it
-    // Adding the packet into a list
-    PacketList.push_back(p)
+            // Sort the packets
+            std::sort(PacketList.begin(), PacketList.end(),
+                      [](Message::Packet& a, Message::Packet& b) { return a.seqn < b.seqn; });
 
-    //Order the list
-    sort(PacketList.begin(), PacketList.end(),
-        [](Message::Packet& a, Message::Packet& b) { return a.seqn < b.seqn; });
-                
-    //Add the ordered list into the queue
-    for(int i = 0; i < PacketList.size(); i++)
-    { 
-        PacketQueue.enqueue(PacketList[i]);
+            for (auto it = PacketList.begin(); it != PacketList.end(); it++)
+            {
+                std::string message(it->payload);
+                std::cout << message << std::flush;
+                std::cout << std::endl;
+            }
+
+            PacketList.clear();
+        }
+
+        sleep(0.2);
     }
-
-    sleep(500);
 }
 
 bool Client::IsConnected() const { return connected; }
-
