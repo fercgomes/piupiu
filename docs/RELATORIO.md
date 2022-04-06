@@ -74,5 +74,5 @@ A estrutura do pacote também tem número de sequência, um _payload_ e o seu ta
 
 # Desafios
 
-1. Garantir a chegada dos pacotes UDP na ordem de envio correta
-2. Gravar as notificações para serem enviadas posteriormente em caso de um usuário estar deslogado
+1. Garantir a chegada dos pacotes UDP na ordem de envio correta. Para isso foi implemetado um buffer que é reordenado pelo número de sequência.
+2. Gravar as notificações para serem enviadas posteriormente em caso de um usuário estar deslogado. Para isso foi implementado um buffer no servidor que guarda as notificações pendentes. Esse buffer é percorrido por uma thread que envia a notificação para os sockets disponíveis na sessão do usuário. Caso pelo menos um socket esteja disponível (usuário logado em uma máquina), a notificação é removida da fila. Caso não existam sockets disponíveis, a notificação fica na fila até que o usuário conecte no servidor.

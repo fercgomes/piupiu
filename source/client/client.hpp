@@ -1,11 +1,14 @@
 #pragma once
 
+#include <functional>
 #include <list>
 #include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
+#include "console/message.hpp"
 
 #include <Packet.hpp>
 
@@ -35,6 +38,10 @@ private:
     // Fila para ordenar os packets pelo numero de sequencia
     std::queue<Message::Packet> PacketQueue;
 
+    //
+    using HandlerFn = std::function<void(std::string, enum MessageType)>;
+    HandlerFn messageHandler;
+
     void Listen();
     void Reorder();
 
@@ -51,11 +58,13 @@ public:
 
     int FollowUser(std::string profile);
     int Post(std::string message);
-    int Info();
+    int GetInfo();
 
-    void SetProfileHandle(std::string profileHandle);
-    void SetServerAddress(std::string serverAddress);
-    void SetServerPort(int port);
+    void        SetProfileHandle(std::string profileHandle);
+    void        SetServerAddress(std::string serverAddress);
+    void        SetServerPort(int port);
+    void        SetMessageHandlerFunc(HandlerFn func);
+    std::string GetHostStr();
 
     void HelpInfo();
 

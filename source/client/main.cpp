@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <iostream>
+#include <ncurses.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <string.h>
@@ -11,6 +12,8 @@
 #include <unistd.h>
 
 #include "client.hpp"
+#include "console/console.hpp"
+#include "console/parser.hpp"
 
 #ifdef USE_GUI
 #include "gui/gui.hpp"
@@ -18,142 +21,43 @@
 
 sig_atomic_t signaled = 0;
 
+enum ClientStatus
+{
+    NotConnected = 0,
+    Connected    = 1
+};
+
 void HelpUsage()
 {
     std::cout << "Uso correto:" << std::endl;
     std::cout << "./Client usuario server_ip server_port" << std::endl;
 }
 
-std::array<std::string, 2> ParseInput(std::string input)
-{
-    int delimiterIndex = -1;
-    int i              = 0;
-    while (i < input.length() && delimiterIndex == -1)
-    {
-        if (isspace(input[i])) { delimiterIndex = i; }
-        else
-        {
-            i++;
-        }
-    }
-
-    if (delimiterIndex != -1)
-    {
-        std::array<std::string, 2> arr;
-        std::string                command  = input.substr(0, delimiterIndex);
-        std::string                argument = input.substr(delimiterIndex + 1, input.length() - 1);
-        arr[0]                              = command;
-        arr[1]                              = argument;
-        return arr;
-    }
-    else
-    {
-        throw std::invalid_argument("Entrada mal formada.");
-    }
-}
-
-void CommandHandler(Client* client, std::string command, std::string arguments) {}
-
-void ListeningHandler(Client* client)
-{
-    bool        shouldExit = false;
-    std::string commandInput;
-
-    while (!shouldExit)
-    {
-
-        // Mesmo sinalizando, o processo fica bloqueado aqui, e só sai quando ler a entrada.
-        // Uma possibilidade é colocar isso em uma thread, e escutar o SIGINT aqui, e quando
-        // pegar um SIGINT, matar a thread.
-        std::getline(std::cin, commandInput);
-
-        try
-        {
-            auto parsedInput = ParseInput(commandInput);
-
-            if (client->IsConnected())
-            {
-                if (parsedInput[0].compare("FOLLOW") == 0) { client->FollowUser(parsedInput[1]); }
-                else if (parsedInput[0].compare("SEND") == 0)
-                {
-                    std::cout << "ashjksdhfa\n";
-                    client->Post(parsedInput[1]);
-                }
-                else if (parsedInput[0].compare("INFO") == 0)
-                {
-                    //
-                    client->Info();
-                }
-            }
-            else
-            {
-                std::cerr << "Você não está conectado." << std::endl;
-            }
-        }
-        catch (const std::invalid_argument& e)
-        {
-            std::cerr << e.what() << std::endl;
-            shouldExit = true;
-        }
-    }
-}
-
 int main(int argc, const char** argv)
 {
     if (argc == 4)
     {
-        std::string profile(argv[1]);
-        std::string serverAddress(argv[2]);
-        int         serverPort(atoi(argv[3]));
-        bool        shouldExit = false;
-        std::string commandInput;
+        std::string              profile(argv[1]);
+        std::string              serverAddress(argv[2]);
+        int                      serverPort(atoi(argv[3]));
+        bool                     shouldExit = false;
+        std::string              commandInput;
+        std::vector<std::string> screenBuffer;
 
-        Client* client = new Client(profile, serverAddress, serverPort);
+        enum ClientStatus status = ClientStatus::NotConnected;
+
+        Client*           client  = new Client(profile, serverAddress, serverPort);
+        ConsoleInterface* console = new ConsoleInterface(client);
+
         client->Connect();
+
+        console->Start();
 
         signal(SIGINT, [](int signum) { signaled = 1; });
 
-        std::thread inputThread(ListeningHandler, client);
-
-        while (!signaled)
-            ;
-
-        inputThread.join();
-
         client->Shutdown();
 
-        // while (!shouldExit)
-        // {
-        //     if (signaled == 0)
-        //     {
-        //         // Mesmo sinalizando, o processo fica bloqueado aqui, e só sai quando ler a
-        //         entrada.
-        //         // Uma possibilidade é colocar isso em uma thread, e escutar o SIGINT aqui, e
-        //         quando
-        //         // pegar um SIGINT, matar a thread.
-        //         std::getline(std::cin, commandInput);
-
-        //         try
-        //         {
-        //             auto parsedInput = ParseInput(commandInput);
-        //             std::cout << parsedInput[0] << std::endl;
-        //             std::cout << parsedInput[1] << std::endl;
-
-        //             if (parsedInput[0].compare("FOLLOW") == 0)
-        //             { client->FollowUser(parsedInput[1]); }
-        //         }
-        //         catch (const std::invalid_argument& e)
-        //         {
-        //             std::cerr << e.what() << std::endl;
-        //             exit(EXIT_FAILURE);
-        //         }
-        //     }
-        //     else
-        //     {
-        //         client->Shutdown();
-        //         shouldExit = true;
-        //     }
-        // }
+        endwin();
 
         return 0;
     }
@@ -165,7 +69,7 @@ int main(int argc, const char** argv)
         return gui->run();
 #else
         std::cout << "Argumentos inválidos." << std::endl;
-        HelpUsage();
+        // HelpUsage();
 #endif
     }
 }

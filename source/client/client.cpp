@@ -20,7 +20,7 @@ Client::Client(std::string profileHandle, std::string serverAddress, int serverP
     this->profileHandle = trim_copy(profileHandle);
     lastSentSeqn        = 0;
 
-    HelpInfo();
+    // HelpInfo();
 }
 
 Client::Client() { lastSentSeqn = 0; }
@@ -50,45 +50,49 @@ void Client::Listen()
             {
             case PACKET_ACCEPT_CONN_CMD:
                 connected = true;
-                std::cout << "Client is connected" << std::endl;
+                // std::cout << "Client is connected" << std::endl;
                 break;
             case PACKET_REJECT_CONN_CMD:
-                std::cout << "Connection was rejected (too many clients connected)" << std::endl;
+                // std::cout << "Connection was rejected (too many clients connected)" << std::endl;
                 Shutdown();
                 break;
             case PACKET_NOTIFICATION:
-                // std::cout << "=====INCOMING MESSAGE=====" << std::endl;
-                // Print the received packages
-                // while (PacketQueue.empty() == false)
-                // {
-                //     std::cout << PacketQueue.front().payload << std::endl;
-                //     PacketQueue.pop();
-                // }
-                {
-                    const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
-                    // PacketQueue.push(p);
-                    PacketList.push_back(p);
-                }
-                // std::cout << "==========================" << std::endl;
-                break;
+            {
+                const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
+                // PacketQueue.push(p);
+                PacketList.push_back(p);
+            }
+            break;
             case PACKET_ERROR:
-                std::cout << "=====SERVER ERROR=====" << std::endl;
-                std::cout << p.payload << std::endl;
-                std::cout << "============ =========" << std::endl;
+                // std::cout << "=====SERVER ERROR=====" << std::endl;
+                // std::cout << p.payload << std::endl;
+                // std::cout << "============ =========" << std::endl;
+                if (messageHandler)
+                {
+                    std::string payload(p.payload);
+                    messageHandler(payload, Error);
+                }
                 break;
             case PACKET_INFO:
-                std::cout << "[SERVER] " << p.payload << std::endl;
+                // std::cout << "[SERVER] " << p.payload << std::endl;
+                if (messageHandler)
+                {
+                    std::string payload(p.payload);
+                    messageHandler(payload, Info);
+                }
                 break;
             default:
-                std::cerr << "Client should not receive this message" << std::endl;
+                // std::cerr << "Client should not receive this message" << std::endl;
                 Shutdown();
                 break;
             }
         }
     }
 
-    std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
+    // std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
 }
+
+void Client::SetMessageHandlerFunc(HandlerFn func) { messageHandler = std::move(func); }
 
 int Client::SendMessageToServer(Message::Packet message)
 {
@@ -115,23 +119,24 @@ void Client::Shutdown()
     close(this->socketDescr);
     this->isListening = false;
 
-    std::cout << "O programa foi terminado." << std::endl;
+    // std::cout << "O programa foi terminado." << std::endl;
 }
 
 int Client::Connect()
 {
-    std::cout << "Conectando no servidor " << serverAddress << ":" << serverPort << " como "
-              << profileHandle << std::endl;
+    // std::cout << "Conectando no servidor " << serverAddress << ":" << serverPort << " como "
+    //           << profileHandle << std::endl;
 
     if ((this->socketDescr = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
-    { std::cerr << "Não foi possível abrir o socket." << std::endl; }
+    {
+        // std::cerr << "Não foi possível abrir o socket." << std::endl;
+    }
     else
     {
-        std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
+        // std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
 
         int r = this->SendMessageToServer(
             Message::MakeConnectCommand(++lastSentSeqn, this->profileHandle));
-        // printf("%d\n", r);
 
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
 
@@ -168,12 +173,12 @@ int Client::Post(std::string message)
     }
     else
     {
-        std::cerr << "Mensagem maior que o máxmo permitido (128 caracteres)" << std::endl;
+        // std::cerr << "Mensagem maior que o máxmo permitido (128 caracteres)" << std::endl;
         return 1;
     }
 }
 
-int Client::Info() { this->SendMessageToServer(Message::MakeRequestUserInfo(++lastSentSeqn)); }
+int Client::GetInfo() { this->SendMessageToServer(Message::MakeRequestUserInfo(++lastSentSeqn)); }
 
 void Client::SetProfileHandle(std::string profileHandle) { this->profileHandle = profileHandle; }
 
@@ -207,8 +212,9 @@ void Client::Reorder()
             for (auto it = PacketList.begin(); it != PacketList.end(); it++)
             {
                 std::string message(it->payload);
-                std::cout << message << std::flush;
-                std::cout << std::endl;
+                // std::cout << message << std::flush;
+                // std::cout << std::endl;
+                if (messageHandler) { messageHandler(message, Notification); }
             }
 
             PacketList.clear();
@@ -219,3 +225,10 @@ void Client::Reorder()
 }
 
 bool Client::IsConnected() const { return connected; }
+
+std::string Client::GetHostStr()
+{
+    std::stringstream ss;
+    ss << serverAddress << ":" << serverPort;
+    return ss.str();
+}
