@@ -36,20 +36,22 @@ void ConsoleInterface::IncomingMessageHandler(std::string message, enum MessageT
     switch (type)
     {
     case Notification:
-        messages.push_back(MakeNotificationMessage(message, 0));
+        messages.push_back(MakeNotificationMessage(message, std::time(NULL)));
         break;
     case Info:
-        messages.push_back(MakeInfoMessage(message, 0));
+        messages.push_back(MakeInfoMessage(message, std::time(NULL)));
         break;
     case Error:
-        messages.push_back(MakeErrorMessage(message, 0));
+        messages.push_back(MakeErrorMessage(message, std::time(NULL)));
         break;
     }
 }
 
 ConsoleInterface::ConsoleInterface(Client* client) : client(client)
 {
-    running = false;
+    running       = false;
+    shouldRefresh = true;
+    // inputThread   = std::make_unique<std::thread>(&ConsoleInterface::InputLoop, this);
 
     client->SetMessageHandlerFunc([this](std::string message, enum MessageType type) {
         this->IncomingMessageHandler(message, type);
@@ -67,6 +69,7 @@ void ConsoleInterface::Init()
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
     init_pair(2, COLOR_BLUE, COLOR_BLACK);
+    init_pair(3, COLOR_CYAN, COLOR_WHITE);
 }
 
 void ConsoleInterface::HandleUserInput(std::string input)
@@ -93,7 +96,8 @@ void ConsoleInterface::HandleUserInput(std::string input)
             }
             else
             {
-                messages.push_back(MakeErrorMessage("Um nome de usuário precisa ser informado", 0));
+                messages.push_back(
+                    MakeErrorMessage("Um nome de usuário precisa ser informado", std::time(0)));
                 // Wrong arguments
             }
 
@@ -103,8 +107,10 @@ void ConsoleInterface::HandleUserInput(std::string input)
         if (!command.compare("help"))
         {
             //
-            messages.push_back(
-                MakeInfoMessage(std::string("teste teste\nteste teste\nteste teste"), 0));
+            messages.push_back(MakeInfoMessage(
+                std::string("Comandos disponíveis:\n/follow [username]\tSegue um "
+                            "usuário\n/help\tMostra essa página de ajuda\n/exit\tSai do programa"),
+                std::time(0)));
             return;
         }
 
@@ -130,6 +136,7 @@ void ConsoleInterface::HandleUserInput(std::string input)
 
 void ConsoleInterface::GetUserInput(int ch)
 {
+
     switch (ch)
     {
     case KEY_BACKSPACE:
@@ -145,6 +152,13 @@ void ConsoleInterface::GetUserInput(int ch)
     case ctrl('c'):
         running = false;
         break;
+    case KEY_UP:
+        if (messageCursor < messages.size()) { messageCursor++; }
+        break;
+    case KEY_DOWN:
+        if (messageCursor > 0) { messageCursor--; }
+        break;
+
     default:
         userInput += ch;
         break;
@@ -161,13 +175,87 @@ void ConsoleInterface::DrawUserInput()
     mvaddstr(inputStartX, inputStartY, userInput.c_str());
 }
 
+static std::vector<std::string> splitString(const std::string& str)
+{
+    std::vector<std::string> tokens;
+
+    std::stringstream ss(str);
+    std::string       token;
+    while (std::getline(ss, token, '\n'))
+    {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+static std::vector<std::string> SplitMessage(std::string message, int padding)
+{
+    auto                     splitted = splitString(message);
+    std::vector<std::string> r;
+    for (auto split : splitted)
+    {
+        std::string newStr;
+        // for (int i = 0; i < padding; i++)
+        // {
+        //     newStr += " ";
+        // }
+        newStr += split;
+        r.push_back(newStr);
+    }
+    return r;
+}
+
 void ConsoleInterface::DrawMessages()
 {
+    const int firstLine  = 2;
+    const int lastLine   = LINES - 4;
+    const int totalLines = lastLine - firstLine;
+
+    int currentMessageIdx = messages.size() - messageCursor - 1;
+
     if (messages.size() > 0)
     {
-        auto message = messages[messages.size() - 1];
+        int lineCount = 0;
+        while (lineCount < totalLines && currentMessageIdx > 0)
+        {
+            // Fetch one message
+            auto        message = messages[currentMessageIdx];
+            auto        lines   = splitString(message.body);
+            const char* dt      = ctime(&message.timestamp);
+            lines.push_back(std::string(""));
 
-        mvaddstr(3, 2, message.body.c_str());
+            // Print timestamp
+            attron(COLOR_PAIR(3));
+            mvaddstr(lastLine - lineCount - lines.size() + 1, 30, dt);
+            attroff(COLOR_PAIR(3));
+
+            for (int i = 0; lineCount < totalLines && i < lines.size(); i++)
+            {
+                switch (message.type)
+                {
+                case Notification:
+                    // attron(COLOR_PAIR(0));
+                    mvaddstr(lastLine - lineCount, 3, lines[lines.size() - (i + 1)].c_str());
+                    // attroff(COLOR_PAIR(0));
+                    break;
+                case Error:
+                    attron(COLOR_PAIR(1));
+                    mvaddstr(lastLine - lineCount, 3, lines[lines.size() - (i + 1)].c_str());
+                    attroff(COLOR_PAIR(1));
+                    break;
+                case Info:
+                    attron(COLOR_PAIR(2));
+                    mvaddstr(lastLine - lineCount, 3, lines[lines.size() - (i + 1)].c_str());
+                    attroff(COLOR_PAIR(2));
+                    break;
+                }
+
+                lineCount++;
+            }
+
+            currentMessageIdx--;
+        }
     }
 }
 
@@ -204,7 +292,9 @@ void ConsoleInterface::MainLoop()
         /** Draw frame */
         border('|', '|', '-', '-', '+', '+', '+', '+');
         DrawFrame();
+
         DrawUserInput();
+
         DrawTitle();
         DrawMessages();
         DrawStatus();
@@ -226,6 +316,20 @@ void ConsoleInterface::MainLoop()
 
     /** NCurses cleanup */
     endwin();
+}
+
+void ConsoleInterface::InputLoop()
+{
+    while (1)
+    {
+        int ch = getch();
+        GetUserInput(ch);
+
+        {
+            const std::lock_guard<std::mutex> lock_guard(mutex);
+            shouldRefresh = true;
+        }
+    }
 }
 
 int ConsoleInterface::Start()
