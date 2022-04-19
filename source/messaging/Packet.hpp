@@ -33,6 +33,7 @@ typedef struct
     uint64_t seqn;
     uint16_t length; // payload length
     uint64_t timestamp;
+    // Flag de destino: Primario | Secundario
     char     payload[PACKET_MAX_PAYLOAD_LEN];
 } Packet;
 

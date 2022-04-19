@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "client.hpp"
+#include "confirmation-buffer.hpp"
 #include "console/console.hpp"
 #include "console/parser.hpp"
 
@@ -69,7 +70,30 @@ int main(int argc, const char** argv)
         return gui->run();
 #else
         std::cout << "Argumentos inválidos." << std::endl;
-        // HelpUsage();
+        static uint64_t seqn = 0;
+
+        constexpr int         N = 3;
+        ConfirmationBuffer<N> buffer([](ConfirmationBuffer<N>::ItemType& container) {
+            std::cout << "Inside callback" << std::endl;
+            for (auto& item : container)
+            {
+                std::cout << "seqn " << item.item->GetSequenceNumber() << " was confirmed"
+                          << std::endl;
+            }
+        });
+
+        std::array<BaseMessage*, N> messages = {new BaseMessage(seqn++), new BaseMessage(seqn++),
+                                                new BaseMessage(seqn++)};
+
+        buffer.Push(messages);
+
+        int r = buffer.Confirm(0);
+        r     = buffer.Confirm(1);
+        r     = buffer.Confirm(2);
+
+        // auto el = buffer.Get(0, 0);
+        // std::cout << el << std::endl;
+
 #endif
     }
 }

@@ -166,7 +166,18 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             profile->SetSession(session);
 
             // Accept connection
+            // Se for primario
+            // Retransmitir o pacote para cada secundario
+            // Quando todos os secundarios confirmarem, confirmar essa mensagem.
             Reply(sender, Message::MakeAcceptConnCommand(++lastSeqn));
+
+            // Recebeu as N confirmações
+            // Confirma de volta pro client
+            // === Termina primario ===
+
+            // Se for secundario
+            // Confirma de volta pro servidor primario.
+            // === Termina secundario ===
 
             // Show connected users
             auto              users = profileManager->GetConnectedUsers(profile);
@@ -176,8 +187,8 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                 ss << user << ",";
             }
             std::string usersStr = "Connected users: " + ss.str();
-
             Reply(sender, Message::MakeInfo(++lastSeqn, usersStr));
+
 
             // Broadcast connect notification
             Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
