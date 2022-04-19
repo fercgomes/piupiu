@@ -74,8 +74,8 @@ int main(int argc, const char** argv)
 
         constexpr int         N = 3;
         ConfirmationBuffer<N> buffer([](ConfirmationBuffer<N>::ItemType& container) {
-            std::cout << "Inside callback" << std::endl;
-            for (auto& item : container)
+            std::cout << "Inside callback, original seqn " << container.originalSeqn << std::endl;
+            for (auto& item : container.content)
             {
                 std::cout << "seqn " << item.item->GetSequenceNumber() << " was confirmed"
                           << std::endl;
@@ -85,7 +85,7 @@ int main(int argc, const char** argv)
         std::array<BaseMessage*, N> messages = {new BaseMessage(seqn++), new BaseMessage(seqn++),
                                                 new BaseMessage(seqn++)};
 
-        buffer.Push(messages);
+        buffer.Push(messages, 10);
 
         int r = buffer.Confirm(0);
         r     = buffer.Confirm(1);

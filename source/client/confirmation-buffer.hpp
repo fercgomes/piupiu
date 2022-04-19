@@ -29,7 +29,11 @@ struct ConfirmableItem
 };
 
 template<int N>
-using ConfirmableContainer = std::array<ConfirmableItem, N>;
+struct ConfirmableContainer
+{
+    std::array<ConfirmableItem, N> content;
+    uint64_t                       originalSeqn = 0;
+};
 
 template<int N>
 class ConfirmationBuffer
@@ -47,13 +51,27 @@ public:
 
         for (int i = 0; i < N; i++)
         {
-            container[i].confirmed = false;
-            container[i].item      = items[i];
+            container.content[i].confirmed = false;
+            container.content[i].item      = items[i];
         }
 
         buffer.emplace_back(std::move(container));
     }
 
+    void Push(std::array<BaseMessage*, N>& items, uint64_t originalSeqn)
+    {
+        ItemType container;
+
+        for (int i = 0; i < N; i++)
+        {
+            container.content[i].confirmed = false;
+            container.content[i].item      = items[i];
+        }
+
+        container.originalSeqn = originalSeqn;
+
+        buffer.emplace_back(std::move(container));
+    }
     // T& Get(std::size_t containerIdx, std::size_t itemIdx)
     // {
     //     return buffer[containerIdx][itemIdx].item.GetContent();
@@ -64,7 +82,7 @@ public:
         int confirmed = 0;
         for (auto& container : buffer)
         {
-            for (auto& item : container)
+            for (auto& item : container.content)
             {
                 auto seqn = item.item->GetSequenceNumber();
                 if (seqn == sequenceNumber)
@@ -100,7 +118,7 @@ private:
         bool confirmed = true;
         for (int i = 0; i < N; i++)
         {
-            if (container[i].confirmed == false) { confirmed = false; }
+            if (container.content[i].confirmed == false) { confirmed = false; }
         }
 
         return confirmed;
