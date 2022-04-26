@@ -20,10 +20,17 @@ ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std:
 
     if (primary)
     {
-        confirmationBuffer =
-            std::make_unique<ConfirmationBuffer<3>>([](ConfirmationBuffer<3>::ItemType& container) {
+        confirmationBuffer = std::make_unique<ConfirmationBuffer<3>>(
+            [=](ConfirmationBuffer<3>::ItemType& container) {
                 std::cout << "Inside callback, original seqn " << container.originalSeqn
                           << std::endl;
+
+                // BUG: tem que confirmar pro client original
+                // Aqui tá mandando sempre pro primary
+                this->GetServer()->GetSocket()->Send(
+                    this->GetPrimaryReplica().GetSocketAddress(),
+                    Message::MakeConfirmStateChangeMessage(container.originalSeqn));
+
                 for (auto& item : container.content)
                 {
                     std::cout << "seqn " << item.item->GetSequenceNumber() << " was confirmed"
@@ -100,7 +107,9 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
 {
     auto peers = GetSecondaryReplicas();
 
-    uint64_t lastSeqn = server->GetLastSeqn();
+    uint64_t lastSeqn     = server->GetLastSeqn();
+    uint64_t lastSeqnTemp = server->GetLastSeqn();
+
     // uint64_t lastSeqn = 0;
 
     // Gambiarra!!
@@ -113,11 +122,12 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
     std::cout << "Last seqn in conf buffer: " << lastSeqn << std::endl;
     std::cout << "Last seqn in server: " << server->GetLastSeqn() << std::endl;
 
-    confirmationBuffer->Push(messages);
+    confirmationBuffer->Push(messages, message.seqn);
 
     // Se nao tiver 3 peers, vai dar ruim
-    for (auto& peer : peers)
+    for (int i = 0; i < peers.size(); i++)
     {
+        auto peer = peers[i];
         std::cout << "Broadcasting message with seqn=" << message.seqn << " to " << peer.address
                   << ":" << peer.port << std::endl;
         SocketAddress addr;
@@ -126,6 +136,7 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
 
         // TODO: Precisa criar novos números de sequencia
         Message::Packet newMsg = message;
+        message.seqn           = lastSeqnTemp + i;
 
         server->GetSocket()->Send(addr, message);
     }

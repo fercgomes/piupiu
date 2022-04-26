@@ -43,7 +43,7 @@ public:
     using ItemType   = ConfirmableContainer<N>;
     using CallbackFn = void(ItemType&);
 
-    ConfirmationBuffer(CallbackFn callback) : callback(callback) {}
+    ConfirmationBuffer(std::function<CallbackFn> callback) : callback(callback) {}
 
     void Push(std::array<BaseMessage*, N>& items)
     {
