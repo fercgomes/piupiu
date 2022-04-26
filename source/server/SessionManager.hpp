@@ -4,6 +4,7 @@
 #include <thread>
 #include "ProfileManager.hpp"
 #include "Session.hpp"
+#include "Socket.hpp"
 
 #include <arpa/inet.h>
 
@@ -18,13 +19,13 @@ public:
     // Retorna ponteiro para sessão, caso exista.
     // Retorna NULL caso o limite de sessões tenha
     // sido alcançado.
-    Session* StartSession(Profile* profile, struct sockaddr_in sender);
-    int      EndSession(Profile* profile, struct sockaddr_in sender);
+    Session* StartSession(Profile* profile, SocketAddress sender);
+    int      EndSession(Profile* profile, SocketAddress sender);
 
-    std::vector<struct sockaddr_in> GetUserAddresses(std::string handle);
+    std::vector<SocketAddress> GetUserAddresses(std::string handle);
 
     void print();
-    int  GetUserNameByAddressAndIP(in_addr address, int port, std::string& out);
+    int  GetUserNameByAddressAndIP(SocketAddress address, std::string& out);
 
     ProfileManager* GetProfileManager() const;
 

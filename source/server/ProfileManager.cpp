@@ -166,9 +166,9 @@ std::vector<std::string> ProfileManager::GetConnectedUsers(Profile* exclude)
     return temp;
 }
 
-std::vector<struct sockaddr_in> ProfileManager::GetConnectedSockets(Profile* exclude)
+std::vector<SocketAddress> ProfileManager::GetConnectedSockets(Profile* exclude)
 {
-    std::vector<struct sockaddr_in> temp;
+    std::vector<SocketAddress> temp;
     for (auto user : profiles)
     {
         if (exclude && user != exclude)

@@ -12,6 +12,7 @@
 #include "ProfileManager.hpp"
 #include "ReplicaManager.hpp"
 #include "SessionManager.hpp"
+#include "Socket.hpp"
 
 class Server
 {
@@ -19,10 +20,11 @@ private:
     std::string bindAddress;
     int         bindPort;
 
-    int                socketDescr;
-    struct sockaddr_in socketAddress;
-    const int          bufferSize = 2048;
-    static uint64_t    lastSeqn;
+    int             socketDescr;
+    const int       bufferSize = 2048;
+    static uint64_t lastSeqn;
+
+    Socket _socket;
 
     bool                            isListening                     = true;
     std::unique_ptr<std::thread>    listeningThread                 = nullptr;
@@ -39,8 +41,8 @@ private:
     void Listen();
     void PendingNotificationWorker();
     void ParseInput(const char* buffer);
-    void MessageHandler(Message::Packet message, struct sockaddr_in sender);
-    void Reply(struct sockaddr_in sender, Message::Packet message);
+    void MessageHandler(Message::Packet message, SocketAddress sockAddr);
+    void Reply(SocketAddress sockAddr, Message::Packet message);
     void Broadcast(Message::Packet message, Profile* exclude = nullptr);
 
 public:

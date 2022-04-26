@@ -29,8 +29,9 @@ int Socket::Bind(std::string address, int port)
 {
     if (socketDesc != -1)
     {
-        bindAddress = address;
-        bindPort    = port;
+        boundAddress.address = address;
+        boundAddress.port    = port;
+        std::cout << "[SOCKET] Binding " << address << ":" << port << std::endl;
 
         // Setar endereço do socket
         struct sockaddr_in addr;
@@ -55,7 +56,7 @@ int Socket::Bind(std::string address, int port)
     }
 }
 
-int Socket::Send(std::string address, int port, Message::Packet data)
+int Socket::Send(SocketAddress address, Message::Packet data)
 {
     if (socketDesc < 0)
     {
@@ -63,11 +64,13 @@ int Socket::Send(std::string address, int port, Message::Packet data)
         return -1;
     }
 
+    std::cout << "[SOCKET] Sending to host " << address.address << ":" << address.port << std::endl;
+
     struct sockaddr_in recipient;
     memset(&recipient, 0, sizeof(recipient));
     recipient.sin_family      = AF_INET;
-    recipient.sin_port        = htons(port);
-    recipient.sin_addr.s_addr = inet_addr(address.c_str());
+    recipient.sin_port        = htons(address.port);
+    recipient.sin_addr.s_addr = inet_addr(address.address.c_str());
 
     int r =
         sendto(socketDesc, &data, sizeof(data), 0, (struct sockaddr*)&recipient, sizeof(recipient));
@@ -78,6 +81,33 @@ int Socket::Send(std::string address, int port, Message::Packet data)
         return r;
     }
 
-    std::cout << "[SOCKET] sendto() sent " << r << " bytes" << std::endl;
+    std::cout << "[SOCKET] sendto() sent " << r << " bytes (" << Message::TypeToStr(data.type)
+              << ")" << std::endl;
     return r;
+}
+int Socket::Receive(void* buffer, std::size_t bufferSize, SocketAddress& addr)
+{
+    struct sockaddr_in incAddr;
+    socklen_t          incAddrlen;
+
+    memset(&incAddr, 0, sizeof(incAddr));
+    memset(&incAddrlen, 0, sizeof(socklen_t));
+
+    int r = recvfrom(socketDesc, buffer, bufferSize, 0, (struct sockaddr*)&incAddr, &incAddrlen);
+
+    if (r > 0)
+    {
+
+        addr.address = std::string(inet_ntoa(incAddr.sin_addr));
+        addr.port    = incAddr.sin_port;
+        // Nao ta pegando a porta certa
+        std::cout << "Aqui" << std::endl;
+        std::cout << addr.address << ":" << addr.port << std::endl;
+        return r;
+    }
+    else
+    {
+        std::cerr << "[SOCKET] Error receiving from socket" << std::endl;
+        return -1;
+    }
 }

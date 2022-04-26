@@ -23,22 +23,23 @@ Server::Server(std::string bindAddress, int bindPort, std::string peersList, boo
     replicaManager = new ReplicaManager(bindAddress, bindPort, primary, peersList);
 
     // Inicializar socket
-    // TODO: verificar return code do socket
-    this->socketDescr = socket(AF_INET, SOCK_DGRAM, 0);
-    std::cout << "Socket inicializado (" << this->socketDescr << ")" << std::endl;
+    _socket.Bind(bindAddress, bindPort);
 
-    // Setar endereço do socket
-    memset(&this->socketAddress, '\0', sizeof(this->socketAddress));
-    this->socketAddress.sin_family      = AF_INET;
-    this->socketAddress.sin_port        = htons(this->bindPort);
-    this->socketAddress.sin_addr.s_addr = inet_addr(this->bindAddress.c_str());
+    // this->socketDescr = socket(AF_INET, SOCK_DGRAM, 0);
+    // std::cout << "Socket inicializado (" << this->socketDescr << ")" << std::endl;
 
-    // Fazer o bind do socket
-    int r = bind(this->socketDescr, (struct sockaddr*)&this->socketAddress,
-                 sizeof(this->socketAddress));
+    // // Setar endereço do socket
+    // memset(&this->socketAddress, '\0', sizeof(this->socketAddress));
+    // this->socketAddress.sin_family      = AF_INET;
+    // this->socketAddress.sin_port        = htons(this->bindPort);
+    // this->socketAddress.sin_addr.s_addr = inet_addr(this->bindAddress.c_str());
 
-    std::cout << "Socket bind (" << r << ")" << std::endl;
-    if (r < 0) { fprintf(stderr, "bind() failed: %s\n", strerror(errno)); }
+    // // Fazer o bind do socket
+    // int r = bind(this->socketDescr, (struct sockaddr*)&this->socketAddress,
+    //              sizeof(this->socketAddress));
+
+    // std::cout << "Socket bind (" << r << ")" << std::endl;
+    // if (r < 0) { fprintf(stderr, "bind() failed: %s\n", strerror(errno)); }
 }
 
 void Server::Listen()
@@ -46,6 +47,8 @@ void Server::Listen()
     char               buffer[this->bufferSize];
     struct sockaddr_in incomingDataAddress;
     socklen_t          incomingDataAddressLength = sizeof(incomingDataAddress);
+    std::string        incAddr;
+    int                incPort;
 
     // Main listening loop
     // Each message that is received gets passe to a message handler.
@@ -53,8 +56,10 @@ void Server::Listen()
     std::cout << "Listening to messages" << std::endl;
     while (this->isListening)
     {
-        int r = recvfrom(this->socketDescr, buffer, this->bufferSize, 0,
-                         (struct sockaddr*)&incomingDataAddress, &incomingDataAddressLength);
+        // int r = recvfrom(this->socketDescr, buffer, this->bufferSize, 0,
+        //                  (struct sockaddr*)&incomingDataAddress, &incomingDataAddressLength);
+        SocketAddress incomingAddress;
+        int           r = _socket.Receive(buffer, bufferSize, incomingAddress);
 
         // printf("Received %d bytes from %s:%d\n", r, inet_ntoa(incomingDataAddress.sin_addr),
         //        incomingDataAddress.sin_port);
@@ -66,7 +71,7 @@ void Server::Listen()
             auto msg = reinterpret_cast<Message::Packet*>(buffer);
 
             messageHandlerThreads.push_back(
-                std::thread(&Server::MessageHandler, this, *msg, incomingDataAddress));
+                std::thread(&Server::MessageHandler, this, *msg, incomingAddress));
             // Deveria limpar a lista periodicamente
 
             // TODO: talvez mapear a thread com o id de quem enviou
@@ -94,7 +99,6 @@ void Server::PendingNotificationWorker()
 
             Profile* recipient = notification.recipient;
             Session* session   = recipient->GetSession();
-
             if (session && session->sockets.size() > 0)
             {
                 std::cout << "Enviando notificação" << std::endl;
@@ -132,11 +136,11 @@ void Server::Stop()
     std::cout << "Servidor finalizado." << std::endl;
 }
 
-void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
+void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddress)
 {
     std::thread::id   thisId = std::this_thread::get_id();
     std::stringstream ss;
-    ss << inet_ntoa(sender.sin_addr) << ":" << sender.sin_port;
+    ss << incomingAddress.address << ":" << incomingAddress.port;
     std::string host = ss.str();
 
     std::cout << "Handling message (threadId: " << thisId << ")" << std::endl;
@@ -164,7 +168,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             profile = profileManager->NewProfile(username);
         }
 
-        auto session = sessionManager->StartSession(profile, sender);
+        auto session = sessionManager->StartSession(profile, incomingAddress);
 
         if (session)
         {
@@ -180,7 +184,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             // Aguardar N confirmações
 
             // Quando todos os secundarios confirmarem, confirmar essa mensagem.
-            Reply(sender, Message::MakeAcceptConnCommand(++lastSeqn));
+            Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
 
             // Recebeu as N confirmações
             // Confirma de volta pro client
@@ -198,7 +202,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                 ss << user << ",";
             }
             std::string usersStr = "Connected users: " + ss.str();
-            Reply(sender, Message::MakeInfo(++lastSeqn, usersStr));
+            Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
 
             // Broadcast connect notification
             Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
@@ -206,7 +210,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         else
         {
             std::cout << "Max connection reach for " << username << std::endl;
-            Reply(sender, Message::MakeRejectConnCommand(++lastSeqn));
+            Reply(incomingAddress, Message::MakeRejectConnCommand(++lastSeqn));
         }
 
         if (replicaManager->IsPrimary())
@@ -236,7 +240,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         Profile* profile = profileManager->GetProfileByName(username);
         if (profile)
         {
-            int ended = sessionManager->EndSession(profile, sender);
+            int ended = sessionManager->EndSession(profile, incomingAddress);
 
             // Broadcast connect notification
             Broadcast(Message::MakeInfo(++lastSeqn, username + " has disconnected."), profile);
@@ -246,7 +250,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         else
         {
             std::cout << "No profile found to disconnect" << std::endl;
-            Reply(sender, Message::MakeError(++lastSeqn, "Profile not found"));
+            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
         }
 
         break;
@@ -256,13 +260,13 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         std::string usernameToFollow(message.payload);
         std::string username;
 
-        if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
+        if (sessionManager->GetUserNameByAddressAndIP(incomingAddress, username))
         {
             Profile* profile = profileManager->GetProfileByName(usernameToFollow);
 
             if (usernameToFollow.compare(username) == 0)
             {
-                Reply(sender, Message::MakeError(++lastSeqn, "You can't follow yourself"));
+                Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow yourself"));
                 return;
             }
 
@@ -270,25 +274,25 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             {
                 if (!profile->AddFollower(username))
                 {
-                    Reply(sender,
+                    Reply(incomingAddress,
                           Message::MakeError(++lastSeqn, "You're already following this user"));
                 }
                 else
                 {
-                    Reply(sender,
+                    Reply(incomingAddress,
                           Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
                 }
             }
             else
             {
                 std::cerr << "Profile " << usernameToFollow << " not found." << std::endl;
-                Reply(sender, Message::MakeError(++lastSeqn, "Profile not found"));
+                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
             }
         }
         else
         {
             std::cerr << "You're not authenticated" << std::endl;
-            Reply(sender, Message::MakeError(++lastSeqn, "Not authenticated"));
+            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -296,7 +300,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     {
         std::string username;
 
-        if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
+        if (sessionManager->GetUserNameByAddressAndIP(incomingAddress, username))
         {
             std::cout << "Send message request from " << username << " (" << host << ")."
                       << std::endl;
@@ -316,18 +320,18 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                     }
                 }
 
-                Reply(sender, Message::MakeInfo(++lastSeqn, "Message sent."));
+                Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "Message sent."));
             }
             else
             {
                 std::cerr << host << " is not authenticated." << std::endl;
-                Reply(sender, Message::MakeError(++lastSeqn, "Not authenticated"));
+                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
             }
         }
         else
         {
             std::cerr << host << " is not authenticated." << std::endl;
-            Reply(sender, Message::MakeError(++lastSeqn, "Not authenticated"));
+            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -337,7 +341,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         std::string       response;
         std::stringstream ss;
 
-        if (sessionManager->GetUserNameByAddressAndIP(sender.sin_addr, sender.sin_port, username))
+        if (sessionManager->GetUserNameByAddressAndIP(incomingAddress, username))
         {
             Profile* profile = profileManager->GetProfileByName(username);
             if (profile)
@@ -362,7 +366,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
                 }
 
                 response = ss.str();
-                Reply(sender, Message::MakeInfo(++lastSeqn, response));
+                Reply(incomingAddress, Message::MakeInfo(++lastSeqn, response));
             }
         }
 
@@ -374,7 +378,7 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     }
     default:
         std::cerr << "Server should receive this message type" << std::endl;
-        Reply(sender, Message::MakeError(++lastSeqn, "Invalid command"));
+        Reply(incomingAddress, Message::MakeError(++lastSeqn, "Invalid command"));
         break;
     }
 
@@ -386,11 +390,10 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
     // if (it != messageHandlerThreads.end()) { messageHandlerThreads.erase(it); }
 }
 
-void Server::Reply(struct sockaddr_in sender, Message::Packet message)
+void Server::Reply(SocketAddress address, Message::Packet message)
 {
 
-    int r = sendto(this->socketDescr, &message, sizeof(message), 0, (struct sockaddr*)&sender,
-                   sizeof(sender));
+    int r = _socket.Send(address, message);
 
     if (r < 0) { fprintf(stderr, "sendto() failed: %s\n", strerror(errno)); }
     else

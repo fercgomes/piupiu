@@ -15,7 +15,7 @@ SessionManager::~SessionManager()
     }
 }
 
-Session* SessionManager::StartSession(Profile* profile, struct sockaddr_in sender)
+Session* SessionManager::StartSession(Profile* profile, SocketAddress sender)
 {
     // Esse seria o lugar certo de ativar o mutex?
     const std::lock_guard<std::mutex>         lock(sessionMutex);
@@ -53,7 +53,7 @@ Session* SessionManager::StartSession(Profile* profile, struct sockaddr_in sende
     }
 }
 
-int SessionManager::EndSession(Profile* profile, struct sockaddr_in sender)
+int SessionManager::EndSession(Profile* profile, SocketAddress sender)
 {
     const std::lock_guard<std::mutex> lock(sessionMutex);
 
@@ -65,12 +65,10 @@ int SessionManager::EndSession(Profile* profile, struct sockaddr_in sender)
     {
         Session* session = it->second;
 
-        const struct sockaddr_in element = sender;
-        auto socketIt = std::find_if(session->sockets.begin(), session->sockets.end(),
-                                     [sender](struct sockaddr_in a) {
-                                         return (a.sin_addr.s_addr == sender.sin_addr.s_addr &&
-                                                 a.sin_port == sender.sin_port);
-                                     });
+        auto socketIt = std::find_if(
+            session->sockets.begin(), session->sockets.end(), [sender](SocketAddress a) {
+                return a.address == sender.address && a.port == sender.port;
+            });
 
         if (socketIt != session->sockets.end())
         {
@@ -92,21 +90,16 @@ void SessionManager::print()
     }
 }
 
-int SessionManager::GetUserNameByAddressAndIP(in_addr address, int port, std::string& out)
+int SessionManager::GetUserNameByAddressAndIP(SocketAddress address, std::string& out)
 {
     const std::lock_guard<std::mutex> lock(sessionMutex);
 
     bool found = false;
     for (auto it = sessions.begin(); it != sessions.end(); ++it)
     {
-        // TODO: need to check all elements on connectedPeers
-        // if (it->second->connectedPeers[0].sin_port == port &&
-        //         it->second->connectedPeers[0].sin_addr.s_addr == address.s_addr ||
-        //     it->second->connectedPeers[1].sin_port == port &&
-        //         it->second->connectedPeers[1].sin_addr.s_addr == address.s_addr)
         for (auto socket : it->second->sockets)
         {
-            if (socket.sin_addr.s_addr == address.s_addr && socket.sin_port == port)
+            if (socket.address == address.address && socket.port == address.port)
             {
                 found     = true;
                 auto user = it->second->userHandle;
@@ -119,12 +112,12 @@ int SessionManager::GetUserNameByAddressAndIP(in_addr address, int port, std::st
     return 0;
 }
 
-std::vector<struct sockaddr_in> SessionManager::GetUserAddresses(std::string handle)
+std::vector<SocketAddress> SessionManager::GetUserAddresses(std::string handle)
 {
     const std::lock_guard<std::mutex> lock(sessionMutex);
 
     auto it = sessions.find(handle);
-    if (it == sessions.end()) { return std::vector<struct sockaddr_in>(); }
+    if (it == sessions.end()) { return std::vector<SocketAddress>(); }
     else
     {
         return it->second->sockets;
