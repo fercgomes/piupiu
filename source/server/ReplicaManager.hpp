@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "../client/confirmation-buffer.hpp"
+#include "Socket.hpp"
 
 class Server;
 
@@ -25,6 +26,14 @@ typedef struct
     std::string address;
     int         port;
     bool        primary;
+
+    SocketAddress GetSocketAddress()
+    {
+        SocketAddress addr;
+        addr.address = address;
+        addr.port    = port;
+        return addr;
+    }
 } Peer;
 
 class ReplicaManager
@@ -42,14 +51,18 @@ private:
 
     /** Returns a list of the secondary replicas in the network */
     std::vector<Peer> GetSecondaryReplicas();
+    Peer              GetPrimaryReplica();
+
+    Server* server;
 
 public:
-    ReplicaManager(std::string address, int port, bool primary, std::string peerList);
+    ReplicaManager(std::string address, int port, bool primary, std::string peerList,
+                   Server* server);
 
     bool IsPrimary() const { return thisPeer.primary; }
 
     int ConfirmMessage(uint64_t seqn);
 
     /** Broadcasts a message to a group of peers */
-    int BroadcastToSecondaries();
+    int BroadcastToSecondaries(Message::Packet message);
 };

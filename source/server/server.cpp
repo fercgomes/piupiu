@@ -11,8 +11,6 @@
 #include <string>
 #include "PendingNotification.hpp"
 
-uint64_t Server::lastSeqn;
-
 Server::Server(std::string bindAddress, int bindPort, std::string peersList, bool primary)
     : bindAddress(bindAddress), bindPort(bindPort)
 {
@@ -20,7 +18,7 @@ Server::Server(std::string bindAddress, int bindPort, std::string peersList, boo
     sessionManager = new SessionManager(profileManager);
     lastSeqn       = 0;
 
-    replicaManager = new ReplicaManager(bindAddress, bindPort, primary, peersList);
+    replicaManager = new ReplicaManager(bindAddress, bindPort, primary, peersList, this);
 
     // Inicializar socket
     _socket.Bind(bindAddress, bindPort);
@@ -184,7 +182,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             // Aguardar N confirmações
 
             // Quando todos os secundarios confirmarem, confirmar essa mensagem.
-            Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
+            // Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
 
             // Recebeu as N confirmações
             // Confirma de volta pro client
@@ -218,7 +216,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             std::cout << "primary" << std::endl;
 
             // broadcast state change to secondaries
-            replicaManager->BroadcastToSecondaries();
+            replicaManager->BroadcastToSecondaries(message);
         }
         else
         {
@@ -410,3 +408,5 @@ void Server::Broadcast(Message::Packet message, Profile* exclude)
         Reply(socket, message);
     }
 }
+
+Socket* Server::GetSocket() { return &_socket; }

@@ -3,14 +3,20 @@
 #include <sstream>
 #include <string>
 #include "../client/confirmation-buffer.hpp"
+#include "../messaging/Packet.hpp"
+#include "Socket.hpp"
+#include "server.hpp"
 
-ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std::string peerList)
+ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std::string peerList,
+                               Server* server)
 {
     thisPeer.address = address;
     thisPeer.port    = port;
     thisPeer.primary = primary;
 
     peers = ParsePeersArgument(peerList);
+
+    this->server = server;
 
     if (primary)
     {
@@ -71,19 +77,54 @@ std::vector<Peer> ReplicaManager::GetSecondaryReplicas()
     std::vector<Peer> r;
     for (auto peer : peers)
     {
-        if (peer.primary) r.push_back(peer);
+        if (!peer.primary) r.push_back(peer);
     }
 
     return r;
 }
 
-int ReplicaManager::BroadcastToSecondaries()
+Peer ReplicaManager::GetPrimaryReplica()
 {
+    if (IsPrimary()) return thisPeer;
 
+    for (auto peer : peers)
+    {
+        if (peer.primary) return peer;
+    }
+
+    std::cerr << "No primary peer found" << std::endl;
+    throw std::invalid_argument("No primary peer found");
+}
+
+int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
+{
     auto peers = GetSecondaryReplicas();
+
     for (auto& peer : peers)
     {
         std::cout << "Broadcasting to " << peer.address << ":" << peer.port << std::endl;
+        SocketAddress addr;
+        addr.address = peer.address;
+        addr.port    = peer.port;
+
+        uint64_t lastSeqn = server->GetLastSeqn();
+        // uint64_t lastSeqn = 0;
+
+        // Gambiarra!!
+        std::array<BaseMessage*, 3> messages = {
+            new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
+
+        for (int i = 0; i < 3; i++)
+            server->IncrementSeqn();
+
+        std::cout << "Last seqn in conf buffer: " << lastSeqn << std::endl;
+        std::cout << "Last seqn in server: " << server->GetLastSeqn() << std::endl;
+
+        confirmationBuffer->Push(messages);
+
+        // TODO: Precisa criar novos números de sequencia
+
+        server->GetSocket()->Send(addr, message);
     }
 }
 
@@ -93,10 +134,18 @@ int ReplicaManager::ConfirmMessage(uint64_t seqn)
     if (IsPrimary())
     {
         //
-        std::cout << "replica is primary" << std::endl;
+        std::cout << "replica is primary, confirming to buffer seqn " << seqn << std::endl;
+        confirmationBuffer->Confirm(seqn);
     }
     else
     {
+        auto primaryReplica = GetPrimaryReplica().GetSocketAddress();
+
         std::cout << "replica is secondary" << std::endl;
+        std::cout << "confirming seqn " << seqn << " to " << primaryReplica.address << ":"
+                  << primaryReplica.port << std::endl;
+        // Send confirm message back
+
+        server->GetSocket()->Send(primaryReplica, Message::MakeConfirmStateChangeMessage(seqn));
     }
 }

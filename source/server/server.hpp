@@ -1,4 +1,5 @@
 #pragma once
+#include <inttypes.h>
 #include <netinet/in.h>
 #include <queue>
 #include <string>
@@ -20,9 +21,9 @@ private:
     std::string bindAddress;
     int         bindPort;
 
-    int             socketDescr;
-    const int       bufferSize = 2048;
-    static uint64_t lastSeqn;
+    int       socketDescr;
+    const int bufferSize = 2048;
+    uint64_t  lastSeqn   = 0;
 
     Socket _socket;
 
@@ -47,6 +48,10 @@ private:
 
 public:
     Server(std::string bindAddress, int bindPort, std::string peersList, bool primary);
+
+    Socket*  GetSocket();
+    uint64_t GetLastSeqn() const { return lastSeqn; }
+    void     IncrementSeqn() { lastSeqn++; }
 
     /* Inicia o servidor */
     void Start();

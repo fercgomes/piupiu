@@ -128,7 +128,7 @@ Packet MakeRequestUserInfo(uint64_t lastSeqn)
 
 Packet MakeConfirmStateChangeMessage(uint64_t seqnToBeConfirmed)
 {
-    Packet p = {.type      = PACKET_REQUEST_USER_INFO,
+    Packet p = {.type      = PACKET_CONFIRM_STATE_CHANGE,
                 .seqn      = seqnToBeConfirmed,
                 .length    = 0,
                 .timestamp = std::time(nullptr)};
