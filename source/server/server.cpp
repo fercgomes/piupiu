@@ -13,11 +13,14 @@
 
 uint64_t Server::lastSeqn;
 
-Server::Server(std::string bindAddress, int bindPort) : bindAddress(bindAddress), bindPort(bindPort)
+Server::Server(std::string bindAddress, int bindPort, std::string peersList, bool primary)
+    : bindAddress(bindAddress), bindPort(bindPort)
 {
     profileManager = new ProfileManager();
     sessionManager = new SessionManager(profileManager);
     lastSeqn       = 0;
+
+    replicaManager = new ReplicaManager(bindAddress, bindPort, primary, peersList);
 
     // Inicializar socket
     // TODO: verificar return code do socket
@@ -47,6 +50,7 @@ void Server::Listen()
     // Main listening loop
     // Each message that is received gets passe to a message handler.
     // The handler parses the message and executes it.
+    std::cout << "Listening to messages" << std::endl;
     while (this->isListening)
     {
         int r = recvfrom(this->socketDescr, buffer, this->bufferSize, 0,
@@ -148,6 +152,8 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
 
         std::cout << "Connect request for " << username << " (" << host << ")." << std::endl;
 
+        // Do state change here
+
         Profile* profile = profileManager->GetProfileByName(username);
 
         if (profile)
@@ -167,7 +173,12 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
 
             // Accept connection
             // Se for primario
+
             // Retransmitir o pacote para cada secundario
+            // Enviar para N secundários
+
+            // Aguardar N confirmações
+
             // Quando todos os secundarios confirmarem, confirmar essa mensagem.
             Reply(sender, Message::MakeAcceptConnCommand(++lastSeqn));
 
@@ -189,7 +200,6 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
             std::string usersStr = "Connected users: " + ss.str();
             Reply(sender, Message::MakeInfo(++lastSeqn, usersStr));
 
-
             // Broadcast connect notification
             Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
         }
@@ -197,6 +207,21 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         {
             std::cout << "Max connection reach for " << username << std::endl;
             Reply(sender, Message::MakeRejectConnCommand(++lastSeqn));
+        }
+
+        if (replicaManager->IsPrimary())
+        {
+            std::cout << "primary" << std::endl;
+
+            // broadcast state change to secondaries
+            replicaManager->BroadcastToSecondaries();
+        }
+        else
+        {
+            // confirm state change back to primary
+
+            std::cout << "secondary" << std::endl;
+            replicaManager->ConfirmMessage(message.seqn);
         }
 
         break;
@@ -342,6 +367,10 @@ void Server::MessageHandler(Message::Packet message, struct sockaddr_in sender)
         }
 
         break;
+    }
+    case PACKET_CONFIRM_STATE_CHANGE:
+    {
+        replicaManager->ConfirmMessage(message.seqn);
     }
     default:
         std::cerr << "Server should receive this message type" << std::endl;

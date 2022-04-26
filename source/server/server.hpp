@@ -1,3 +1,4 @@
+#pragma once
 #include <netinet/in.h>
 #include <queue>
 #include <string>
@@ -9,6 +10,7 @@
 #include <Packet.hpp>
 #include "PendingNotification.hpp"
 #include "ProfileManager.hpp"
+#include "ReplicaManager.hpp"
 #include "SessionManager.hpp"
 
 class Server
@@ -32,6 +34,7 @@ private:
 
     ProfileManager* profileManager;
     SessionManager* sessionManager;
+    ReplicaManager* replicaManager;
 
     void Listen();
     void PendingNotificationWorker();
@@ -41,7 +44,7 @@ private:
     void Broadcast(Message::Packet message, Profile* exclude = nullptr);
 
 public:
-    Server(std::string bindAddress, int bindPort);
+    Server(std::string bindAddress, int bindPort, std::string peersList, bool primary);
 
     /* Inicia o servidor */
     void Start();

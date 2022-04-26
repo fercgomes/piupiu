@@ -126,6 +126,16 @@ Packet MakeRequestUserInfo(uint64_t lastSeqn)
     return p;
 }
 
+Packet MakeConfirmStateChangeMessage(uint64_t seqnToBeConfirmed)
+{
+    Packet p = {.type      = PACKET_REQUEST_USER_INFO,
+                .seqn      = seqnToBeConfirmed,
+                .length    = 0,
+                .timestamp = std::time(nullptr)};
+
+    return p;
+}
+
 const char* TypeToStr(uint16_t type)
 {
     switch (type)
@@ -160,6 +170,8 @@ const char* TypeToStr(uint16_t type)
         return "PACKET_NOTIFICATION";
     case PACKET_INFO:
         return "PACKET_INFO";
+    case PACKET_CONFIRM_STATE_CHANGE:
+        return "PACKET_CONFIRM_STATE_CHANGE";
     }
 }
 

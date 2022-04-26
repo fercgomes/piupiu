@@ -50,10 +50,10 @@ void Client::Listen()
             {
             case PACKET_ACCEPT_CONN_CMD:
                 connected = true;
-                // std::cout << "Client is connected" << std::endl;
+                std::cout << "Client is connected" << std::endl;
                 break;
             case PACKET_REJECT_CONN_CMD:
-                // std::cout << "Connection was rejected (too many clients connected)" << std::endl;
+                std::cout << "Connection was rejected (too many clients connected)" << std::endl;
                 Shutdown();
                 break;
             case PACKET_NOTIFICATION:
@@ -89,7 +89,7 @@ void Client::Listen()
         }
     }
 
-    // std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
+    std::cout << "Terminando thread de recebimento de mensagens" << std::endl;
 }
 
 void Client::SetMessageHandlerFunc(HandlerFn func) { messageHandler = std::move(func); }
@@ -128,15 +128,15 @@ int Client::Connect()
     //           << profileHandle << std::endl;
 
     if ((this->socketDescr = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
-    {
-        // std::cerr << "Não foi possível abrir o socket." << std::endl;
-    }
+    { std::cerr << "Não foi possível abrir o socket." << std::endl; }
     else
     {
-        // std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
+        std::cout << "Socket aberto (" << this->socketDescr << ")" << std::endl;
 
         int r = this->SendMessageToServer(
             Message::MakeConnectCommand(++lastSentSeqn, this->profileHandle));
+
+        std::cout << r << std::endl;
 
         this->listeningThread = std::make_unique<std::thread>(&Client::Listen, this);
 

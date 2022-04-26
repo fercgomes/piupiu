@@ -308,6 +308,8 @@ void ConsoleInterface::MainLoop()
         }
         else
         {
+            ch = getch();
+            GetUserInput(ch);
         }
 
         /** Update the current screen */
