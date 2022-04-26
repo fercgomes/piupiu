@@ -373,6 +373,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     case PACKET_CONFIRM_STATE_CHANGE:
     {
         replicaManager->ConfirmMessage(message.seqn);
+        break;
     }
     default:
         std::cerr << "Server should receive this message type" << std::endl;
