@@ -372,6 +372,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_CONFIRM_STATE_CHANGE:
     {
+        std::cout << "Received confirm state change message" << std::endl;
         replicaManager->ConfirmMessage(message.seqn);
         break;
     }

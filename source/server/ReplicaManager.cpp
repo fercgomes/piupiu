@@ -100,6 +100,22 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
 {
     auto peers = GetSecondaryReplicas();
 
+    uint64_t lastSeqn = server->GetLastSeqn();
+    // uint64_t lastSeqn = 0;
+
+    // Gambiarra!!
+    std::array<BaseMessage*, 3> messages = {
+        new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
+
+    for (int i = 0; i < 3; i++)
+        server->IncrementSeqn();
+
+    std::cout << "Last seqn in conf buffer: " << lastSeqn << std::endl;
+    std::cout << "Last seqn in server: " << server->GetLastSeqn() << std::endl;
+
+    confirmationBuffer->Push(messages);
+
+    // Se nao tiver 3 peers, vai dar ruim
     for (auto& peer : peers)
     {
         std::cout << "Broadcasting to " << peer.address << ":" << peer.port << std::endl;
@@ -107,22 +123,8 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
         addr.address = peer.address;
         addr.port    = peer.port;
 
-        uint64_t lastSeqn = server->GetLastSeqn();
-        // uint64_t lastSeqn = 0;
-
-        // Gambiarra!!
-        std::array<BaseMessage*, 3> messages = {
-            new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
-
-        for (int i = 0; i < 3; i++)
-            server->IncrementSeqn();
-
-        std::cout << "Last seqn in conf buffer: " << lastSeqn << std::endl;
-        std::cout << "Last seqn in server: " << server->GetLastSeqn() << std::endl;
-
-        confirmationBuffer->Push(messages);
-
         // TODO: Precisa criar novos números de sequencia
+        Message::Packet newMsg = message;
 
         server->GetSocket()->Send(addr, message);
     }
