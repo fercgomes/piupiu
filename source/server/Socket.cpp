@@ -102,8 +102,6 @@ int Socket::Receive(void* buffer, std::size_t bufferSize, SocketAddress& addr)
         addr.address = std::string(inet_ntoa(incAddr.sin_addr));
         addr.port    = incAddr.sin_port;
         // Nao ta pegando a porta certa
-        std::cout << "Aqui" << std::endl;
-        std::cout << addr.address << ":" << addr.port << std::endl;
         return r;
     }
     else

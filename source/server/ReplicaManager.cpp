@@ -118,7 +118,8 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
     // Se nao tiver 3 peers, vai dar ruim
     for (auto& peer : peers)
     {
-        std::cout << "Broadcasting to " << peer.address << ":" << peer.port << std::endl;
+        std::cout << "Broadcasting message with seqn=" << message.seqn << " to " << peer.address
+                  << ":" << peer.port << std::endl;
         SocketAddress addr;
         addr.address = peer.address;
         addr.port    = peer.port;

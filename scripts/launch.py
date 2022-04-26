@@ -1,7 +1,9 @@
+import logging
 import os
 import signal
 import subprocess
 import sys
+import threading
 from os import path
 
 from colored import attr, bg, fg
@@ -44,12 +46,27 @@ def generate_env(peer):
 
     return d
 
+procs = []
+threads = []
+running = True
+
+def log_thread(proc, peer, index):
+    while True:
+        inline = proc.stdout.readline()
+
+        if not inline:
+            break
+
+        sys.stdout.write(colors[index] + "[" + ("PRIMARY" if peer[2] else "SECONDARY") + " PEER " + peer[0] + ":" + str(peer[1]) + "] ")
+        sys.stdout.write(inline.decode() + reset)
+        sys.stdout.flush()
+
+
 def main():
-    procs = []
 
     try:
-        for peer in peers:
-            print("Lauching " + ("primary" if peer[2] else "secondary") + " peer at " + peer[0] + ":" + str(peer[1]))
+        for index, peer in enumerate(peers):
+            logging.info("Lauching " + ("primary" if peer[2] else "secondary") + " peer at " + peer[0] + ":" + str(peer[1]))
 
             env = generate_env(peer)
             print(env)
@@ -57,22 +74,30 @@ def main():
             p = subprocess.Popen(server_bin, shell=True, env=env, stdout=subprocess.PIPE)
             procs.append((peer, p))
 
-        while True:
-            for index, (peer, proc) in enumerate(procs):
-                inline = proc.stdout.readline()
+            x = threading.Thread(target=log_thread, args=(p, peer, index))
+            x.start()
+            threads.append(x)
 
-                if not inline:
-                    break
+        # while True:
+        #     for index, (peer, proc) in enumerate(procs):
+        #         inline = proc.stdout.readline()
 
-                sys.stdout.write(colors[index] + "[" + ("PRIMARY" if peer[2] else "SECONDARY") + " PEER " + peer[0] + ":" + str(peer[1]) + "] ")
-                sys.stdout.write(inline.decode() + reset)
-                sys.stdout.flush()
+        #         if not inline:
+        #             break
+
+        #         sys.stdout.write(colors[index] + "[" + ("PRIMARY" if peer[2] else "SECONDARY") + " PEER " + peer[0] + ":" + str(peer[1]) + "] ")
+        #         sys.stdout.write(inline.decode() + reset)
+        #         sys.stdout.flush()
     except KeyboardInterrupt:
         print("Captured keyboard interrupt")
         for (peer, proc) in procs:
             print("Killing process " + str(proc.pid))
             proc.send_signal(signal.SIGINT)
+        
 
 
+if __name__ == "__main__":
+    format = "%(asctime)s: %(message)s"
+    logging.basicConfig(format=format, level=logging.INFO, datefmt="%H:%M:%S")
 
-main()
+    main()

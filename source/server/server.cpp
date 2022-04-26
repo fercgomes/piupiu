@@ -200,10 +200,10 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 ss << user << ",";
             }
             std::string usersStr = "Connected users: " + ss.str();
-            Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
+            // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
 
             // Broadcast connect notification
-            Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
+            // Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
         }
         else
         {
@@ -213,7 +213,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
 
         if (replicaManager->IsPrimary())
         {
-            std::cout << "primary" << std::endl;
+            std::cout << "[connect user] primary" << std::endl;
 
             // broadcast state change to secondaries
             replicaManager->BroadcastToSecondaries(message);
@@ -222,7 +222,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         {
             // confirm state change back to primary
 
-            std::cout << "secondary" << std::endl;
+            std::cout << "[connect user] secondary" << std::endl;
             replicaManager->ConfirmMessage(message.seqn);
         }
 
