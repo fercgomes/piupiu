@@ -91,7 +91,8 @@ int Socket::Receive(void* buffer, std::size_t bufferSize, SocketAddress& addr)
     socklen_t          incAddrlen;
 
     memset(&incAddr, 0, sizeof(incAddr));
-    memset(&incAddrlen, 0, sizeof(socklen_t));
+    // memset(&incAddrlen, 0, sizeof(socklen_t));
+    incAddrlen = sizeof(struct sockaddr_in);
 
     int r = recvfrom(socketDesc, buffer, bufferSize, 0, (struct sockaddr*)&incAddr, &incAddrlen);
 
