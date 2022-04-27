@@ -78,16 +78,6 @@ def main():
             x.start()
             threads.append(x)
 
-        # while True:
-        #     for index, (peer, proc) in enumerate(procs):
-        #         inline = proc.stdout.readline()
-
-        #         if not inline:
-        #             break
-
-        #         sys.stdout.write(colors[index] + "[" + ("PRIMARY" if peer[2] else "SECONDARY") + " PEER " + peer[0] + ":" + str(peer[1]) + "] ")
-        #         sys.stdout.write(inline.decode() + reset)
-        #         sys.stdout.flush()
     except KeyboardInterrupt:
         print("Captured keyboard interrupt")
         for (peer, proc) in procs:

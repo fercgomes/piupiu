@@ -60,7 +60,7 @@ public:
     int ConfirmMessage(uint64_t seqn);
 
     /** Broadcasts a message to a group of peers */
-    int BroadcastToSecondaries(Message::Packet message);
+    int BroadcastToSecondaries(Message::Packet message, SocketAddress senderAddress);
 
     Server* GetServer() const { return server; }
     /** Returns a list of the secondary replicas in the network */

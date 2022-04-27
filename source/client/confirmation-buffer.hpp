@@ -7,6 +7,7 @@
 #include <mutex>
 #include <utility>
 #include <vector>
+#include "../server/Socket.hpp"
 
 class BaseMessage
 {
@@ -33,6 +34,7 @@ struct ConfirmableContainer
 {
     std::array<ConfirmableItem, N> content;
     uint64_t                       originalSeqn = 0;
+    SocketAddress                  originalHost;
 };
 
 template<int N>
@@ -69,6 +71,21 @@ public:
         }
 
         container.originalSeqn = originalSeqn;
+
+        buffer.emplace_back(std::move(container));
+    }
+    void Push(std::array<BaseMessage*, N>& items, uint64_t originalSeqn, SocketAddress address)
+    {
+        ItemType container;
+
+        for (int i = 0; i < N; i++)
+        {
+            container.content[i].confirmed = false;
+            container.content[i].item      = items[i];
+        }
+
+        container.originalSeqn = originalSeqn;
+        container.originalHost = address;
 
         buffer.emplace_back(std::move(container));
     }

@@ -81,6 +81,10 @@ void Client::Listen()
                     messageHandler(payload, Info);
                 }
                 break;
+            case PACKET_CONFIRM_STATE_CHANGE:
+                std::cout << "Confirm state changed seqn=" << p.seqn << std::endl;
+                if (messageHandler) messageHandler(std::string("state change"), Info);
+                break;
             default:
                 // std::cerr << "Client should not receive this message" << std::endl;
                 Shutdown();

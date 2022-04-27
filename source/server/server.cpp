@@ -216,7 +216,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             std::cout << "[connect user] primary" << std::endl;
 
             // broadcast state change to secondaries
-            replicaManager->BroadcastToSecondaries(message);
+            replicaManager->BroadcastToSecondaries(message, incomingAddress);
         }
         else
         {

@@ -28,7 +28,7 @@ ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std:
                 // BUG: tem que confirmar pro client original
                 // Aqui tá mandando sempre pro primary
                 this->GetServer()->GetSocket()->Send(
-                    this->GetPrimaryReplica().GetSocketAddress(),
+                    container.originalHost,
                     Message::MakeConfirmStateChangeMessage(container.originalSeqn));
 
                 for (auto& item : container.content)
@@ -103,7 +103,7 @@ Peer ReplicaManager::GetPrimaryReplica()
     throw std::invalid_argument("No primary peer found");
 }
 
-int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
+int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddress senderAddress)
 {
     auto peers = GetSecondaryReplicas();
 
@@ -122,7 +122,7 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message)
     std::cout << "Last seqn in conf buffer: " << lastSeqn << std::endl;
     std::cout << "Last seqn in server: " << server->GetLastSeqn() << std::endl;
 
-    confirmationBuffer->Push(messages, message.seqn);
+    confirmationBuffer->Push(messages, message.seqn, senderAddress);
 
     // Se nao tiver 3 peers, vai dar ruim
     for (int i = 0; i < peers.size(); i++)
