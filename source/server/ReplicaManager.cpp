@@ -142,6 +142,38 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddres
     }
 }
 
+int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message)
+{
+    auto peers = GetSecondaryReplicas();
+
+    uint64_t lastSeqn     = server->GetLastSeqn();
+    uint64_t lastSeqnTemp = server->GetLastSeqn();
+
+    // uint64_t lastSeqn = 0;
+
+    // Gambiarra!!
+    std::array<BaseMessage*, 3> messages = {
+        new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
+
+
+    // Se nao tiver 3 peers, vai dar ruim
+    for (int i = 0; i < peers.size(); i++)
+    {
+        auto peer = peers[i];
+        std::cout << "Broadcasting heartbeat" << " to " << peer.address
+                  << ":" << peer.port << std::endl;
+        SocketAddress addr;
+        addr.address = peer.address;
+        addr.port    = peer.port;
+
+        // TODO: Precisa criar novos números de sequencia
+        Message::Packet newMsg = message;
+        message.seqn           = lastSeqnTemp + i;
+
+        server->GetSocket()->Send(addr, message);
+    }
+}
+
 int ReplicaManager::ConfirmMessage(uint64_t seqn)
 {
     std::cout << "confirming message seqn=" << seqn << std::endl;

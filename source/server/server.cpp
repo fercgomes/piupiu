@@ -1,6 +1,7 @@
 #pragma once
 
 #include "server.hpp"
+#include <ctime>
 #include <Packet.hpp>
 #include <algorithm>
 #include <arpa/inet.h>
@@ -115,6 +116,29 @@ void Server::PendingNotificationWorker()
     }
 }
 
+void Server::HeartbeatNotificationWorker()
+{
+    while (true)
+    {
+        if (replicaManager->IsPrimary()) {
+                sleep(4);
+                replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage());
+            }
+            else 
+            {
+                if (lastHeartbeatTimestamp - std::time(nullptr) > 9000) {
+                    std::cout << "A new election algorithm should start here" << std::endl;
+                }
+                else
+                {
+                    sleep(4);
+                    std::cout << "Nothing to do here" << std::endl;
+                }
+            } 
+    }
+    
+}
+
 void Server::Start()
 {
     // Spawn listening thread
@@ -123,6 +147,10 @@ void Server::Start()
     // Spawn notificationw worker thread
     this->pendingNotificationWorkerThread =
         std::make_unique<std::thread>(&Server::PendingNotificationWorker, this);
+
+    // Spawn heartbeat worker thread
+    this->heartBeatWorkerThread =
+        std::make_unique<std::thread>(&Server::HeartbeatNotificationWorker, this);
 
     while (1)
         ;
@@ -216,7 +244,9 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             std::cout << "[connect user] primary" << std::endl;
 
             // broadcast state change to secondaries
+            Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
             replicaManager->BroadcastToSecondaries(message, incomingAddress);
+            std::cout << "debug dos guris funcionando" << std::endl;
         }
         else
         {
@@ -248,7 +278,15 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         else
         {
             std::cout << "No profile found to disconnect" << std::endl;
-            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
+            if (replicaManager->IsPrimary()) {
+                replicaManager->BroadcastToSecondaries(message, incomingAddress);
+                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
+            }
+            else 
+            {
+                std::cout << "[disconnect] secondary" << std::endl;
+                replicaManager->ConfirmMessage(message.seqn);
+            }
         }
 
         break;
@@ -277,8 +315,14 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 }
                 else
                 {
-                    Reply(incomingAddress,
-                          Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
+                    if (replicaManager->IsPrimary()) {
+                        Reply(incomingAddress,
+                            Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
+                    }
+                    else {
+                        std::cout << "[follow] secondary - You're following" + usernameToFollow << std::endl;
+                        replicaManager->ConfirmMessage(message.seqn);
+                    }
                 }
             }
             else
@@ -317,7 +361,6 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                         notificationQueue.push(notification);
                     }
                 }
-
                 Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "Message sent."));
             }
             else
@@ -376,8 +419,21 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         replicaManager->ConfirmMessage(message.seqn);
         break;
     }
+    case PACKET_HEARTBEAT:
+    {
+        if (replicaManager->IsPrimary()) {
+            std::cerr << "I'm primary. Why am I receibing heartbeat message?" << std::endl;
+            break;
+        }
+        else
+        {
+            std::cout << "Primary sent me a heartbeat. I will still be secondary" << std::endl;
+            lastHeartbeatTimestamp = std::time(nullptr);
+        }
+        break;
+    }
     default:
-        std::cerr << "Server should receive this message type" << std::endl;
+        std::cerr << "Server should not receive this message type" << std::endl;
         Reply(incomingAddress, Message::MakeError(++lastSeqn, "Invalid command"));
         break;
     }

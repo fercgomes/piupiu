@@ -62,6 +62,8 @@ public:
     /** Broadcasts a message to a group of peers */
     int BroadcastToSecondaries(Message::Packet message, SocketAddress senderAddress);
 
+    int BroadcastHeartbeatToSecondaries(Message::Packet message);
+
     Server* GetServer() const { return server; }
     /** Returns a list of the secondary replicas in the network */
     std::vector<Peer> GetSecondaryReplicas();

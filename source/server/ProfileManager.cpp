@@ -7,7 +7,6 @@
 #include <sstream>
 #include "Session.hpp"
 
-#define PROFILES_FILENAME "profiles.dat"
 
 struct profileHasName
 {
@@ -37,8 +36,8 @@ int ProfileManager::ReadProfilesFromFile()
 {
     std::fstream                    profilesFile;
     std::map<std::string, Profile*> profilesMap;
-
-    profilesFile.open(PROFILES_FILENAME, std::ios::in);
+    std::string filename = "profiles";
+    profilesFile.open(filename.append(std::getenv("BIND_PORT")).append(".dat"), std::ios::in);
 
     if (profilesFile)
     {
@@ -112,7 +111,8 @@ void ProfileManager::Sync()
 {
     std::cout << "Syncing profiles to disk" << std::endl;
     std::fstream profilesFile;
-    profilesFile.open(PROFILES_FILENAME, std::ios::out);
+    std::string filename = "profiles";
+    profilesFile.open(filename.append(std::getenv("BIND_PORT")).append(".dat"), std::ios::out);
     if (profilesFile)
     {
         // write user names

@@ -136,6 +136,16 @@ Packet MakeConfirmStateChangeMessage(uint64_t seqnToBeConfirmed)
     return p;
 }
 
+Packet MakeHeartbeatMessage()
+{
+    Packet p = {.type      = PACKET_HEARTBEAT,
+                .seqn      = 0,
+                .length    = 0,
+                .timestamp = std::time(nullptr)};
+
+    return p;
+}
+
 const char* TypeToStr(uint16_t type)
 {
     switch (type)
@@ -163,6 +173,10 @@ const char* TypeToStr(uint16_t type)
     case PACKET_SEND_CMD:
     {
         return "PACKET_SEND_CMD";
+    }
+    case PACKET_HEARTBEAT:
+    {
+        return "PACKET_HEARTBEAT";
     }
     case PACKET_ERROR:
         return "PACKET_ERROR";

@@ -30,6 +30,7 @@ private:
     bool                            isListening                     = true;
     std::unique_ptr<std::thread>    listeningThread                 = nullptr;
     std::unique_ptr<std::thread>    pendingNotificationWorkerThread = nullptr;
+    std::unique_ptr<std::thread>    heartBeatWorkerThread           = nullptr;
     std::vector<std::thread>        messageHandlerThreads;
     std::queue<PendingNotification> notificationQueue;
 
@@ -38,9 +39,11 @@ private:
     ProfileManager* profileManager;
     SessionManager* sessionManager;
     ReplicaManager* replicaManager;
+    std::time_t     lastHeartbeatTimestamp;
 
     void Listen();
     void PendingNotificationWorker();
+    void HeartbeatNotificationWorker();
     void ParseInput(const char* buffer);
     void MessageHandler(Message::Packet message, SocketAddress sockAddr);
     void Reply(SocketAddress sockAddr, Message::Packet message);
