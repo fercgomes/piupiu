@@ -126,12 +126,12 @@ void Server::HeartbeatNotificationWorker()
             }
             else 
             {
-                if (lastHeartbeatTimestamp - std::time(nullptr) > 9000) {
+                sleep(4);
+                if (std::time(nullptr) - lastHeartbeatTimestamp > 9) {
                     std::cout << "A new election algorithm should start here" << std::endl;
                 }
                 else
                 {
-                    sleep(4);
                     std::cout << "Nothing to do here" << std::endl;
                 }
             } 
