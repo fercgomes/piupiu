@@ -44,6 +44,7 @@ private:
     void Listen();
     void PendingNotificationWorker();
     void HeartbeatNotificationWorker();
+    void ElectionAlgorithmProcess();
     void ParseInput(const char* buffer);
     void MessageHandler(Message::Packet message, SocketAddress sockAddr);
     void Reply(SocketAddress sockAddr, Message::Packet message);

@@ -116,6 +116,24 @@ void Server::PendingNotificationWorker()
     }
 }
 
+void Server::ElectionAlgorithmProcess()
+{
+    //First Try
+    //We have to pick up all ports of secondary replica manager
+    //and elects the one with the higher port number
+
+    //Let's pick up all the secondary replicas
+    std::vector<Peer> secondary_connections = replicaManager->GetSecondaryReplicas();
+
+    //Pick up the bigger port between these connections
+    auto max = *std::max_element(secondary_connections.begin(),
+                                secondary_connections.end(),
+                                [](const st& a,const st& b) { return a.port < b.port; });
+
+    //Let's switch the selected process primary flag to true
+    max.primary = true;
+}
+
 void Server::HeartbeatNotificationWorker()
 {
     while (true)
@@ -129,6 +147,8 @@ void Server::HeartbeatNotificationWorker()
                 sleep(4);
                 if (std::time(nullptr) - lastHeartbeatTimestamp > 9) {
                     std::cout << "A new election algorithm should start here" << std::endl;
+
+
                 }
                 else
                 {
