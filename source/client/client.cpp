@@ -50,10 +50,10 @@ void Client::Listen()
             {
             case PACKET_ACCEPT_CONN_CMD:
                 connected = true;
-                std::cout << "Client is connected" << std::endl;
+                // std::cout << "Client is connected" << std::endl;
                 break;
             case PACKET_REJECT_CONN_CMD:
-                std::cout << "Connection was rejected (too many clients connected)" << std::endl;
+                // std::cout << "Connection was rejected (too many clients connected)" << std::endl;
                 Shutdown();
                 break;
             case PACKET_NOTIFICATION:
