@@ -43,9 +43,6 @@ private:
     using HandlerFn = std::function<void(std::string, enum MessageType)>;
     HandlerFn messageHandler;
 
-    // Confirmation buffer
-    ConfirmationBuffer<1>* confirmationBuffer;
-
     void Listen();
     void Reorder();
 

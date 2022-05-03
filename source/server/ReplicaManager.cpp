@@ -27,9 +27,22 @@ ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std:
 
                 // BUG: tem que confirmar pro client original
                 // Aqui tá mandando sempre pro primary
-                this->GetServer()->GetSocket()->Send(
-                    container.originalHost,
-                    Message::MakeConfirmStateChangeMessage(container.originalSeqn));
+
+                auto message = container.content[0].item->GetPacket();
+                switch (message.type)
+                {
+                case PACKET_CONNECT_CMD:
+                    this->GetServer()->GetSocket()->Send(
+                        container.originalHost,
+                        Message::MakeAcceptConnCommand(container.originalSeqn));
+                    break;
+
+                    // TODO: Adicionar as outras confirmaçoes
+
+                default:
+                    std::cout << "ops" << std::endl;
+                    break;
+                }
 
                 for (auto& item : container.content)
                 {
@@ -113,8 +126,9 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddres
     // uint64_t lastSeqn = 0;
 
     // Gambiarra!!
-    std::array<BaseMessage*, 3> messages = {
-        new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
+    std::array<BaseMessage*, 3> messages = {new BaseMessage(lastSeqn++, message),
+                                            new BaseMessage(lastSeqn++, message),
+                                            new BaseMessage(lastSeqn++, message)};
 
     for (int i = 0; i < 3; i++)
         server->IncrementSeqn();

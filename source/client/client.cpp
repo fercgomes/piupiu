@@ -20,53 +20,6 @@ Client::Client(std::string profileHandle, std::string serverAddress, int serverP
 {
     this->profileHandle = trim_copy(profileHandle);
     lastSentSeqn        = 0;
-
-    // HelpInfo();
-
-    confirmationBuffer = new ConfirmationBuffer<1>([=](ConfirmationBuffer<1>::ItemType& container) {
-        std::cout << "A message was confirmed" << std::endl;
-        auto p = container.content[0].item->GetPacket();
-        switch (p.type)
-        {
-        case PACKET_ACCEPT_CONN_CMD:
-            connected = true;
-            // std::cout << "Client is connected" << std::endl;
-            break;
-        case PACKET_REJECT_CONN_CMD:
-            std::cout << "Connection was rejected (too many clients connected)" << std::endl;
-            Shutdown();
-            break;
-        case PACKET_NOTIFICATION:
-        {
-            const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
-            // PacketQueue.push(p);
-            PacketList.push_back(p);
-        }
-        break;
-        case PACKET_ERROR:
-            // std::cout << "=====SERVER ERROR=====" << std::endl;
-            // std::cout << p.payload << std::endl;
-            // std::cout << "============ =========" << std::endl;
-            if (messageHandler)
-            {
-                std::string payload(p.payload);
-                messageHandler(payload, Error);
-            }
-            break;
-        case PACKET_INFO:
-            // std::cout << "[SERVER] " << p.payload << std::endl;
-            if (messageHandler)
-            {
-                std::string payload(p.payload);
-                messageHandler(payload, Info);
-            }
-            break;
-
-        default:
-            std::cout << "Switch-case default" << std::endl;
-            break;
-        }
-    });
 }
 
 Client::Client() { lastSentSeqn = 0; }
@@ -94,49 +47,42 @@ void Client::Listen()
         {
             switch (p.type)
             {
-            // case PACKET_ACCEPT_CONN_CMD:
-            //     connected = true;
-            //     // std::cout << "Client is connected" << std::endl;
-            //     break;
-            // case PACKET_REJECT_CONN_CMD:
-            //     // std::cout << "Connection was rejected (too many clients connected)" <<
-            //     std::endl; Shutdown(); break;
-            // case PACKET_NOTIFICATION:
-            // {
-            //     const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
-            //     // PacketQueue.push(p);
-            //     PacketList.push_back(p);
-            // }
-            // break;
-            // case PACKET_ERROR:
-            //     // std::cout << "=====SERVER ERROR=====" << std::endl;
-            //     // std::cout << p.payload << std::endl;
-            //     // std::cout << "============ =========" << std::endl;
-            //     if (messageHandler)
-            //     {
-            //         std::string payload(p.payload);
-            //         messageHandler(payload, Error);
-            //     }
-            //     break;
-            // case PACKET_INFO:
-            //     // std::cout << "[SERVER] " << p.payload << std::endl;
-            //     if (messageHandler)
-            //     {
-            //         std::string payload(p.payload);
-            //         messageHandler(payload, Info);
-            //     }
-            //     break;
-            case PACKET_CONFIRM_STATE_CHANGE:
-                std::cout << "Confirm state changed seqn=" << p.seqn << std::endl;
-                if (confirmationBuffer) { confirmationBuffer->Confirm(p.seqn); }
-                else
+            case PACKET_ACCEPT_CONN_CMD:
+                connected = true;
+                // std::cout << "Client is connected" << std::endl;
+                break;
+            case PACKET_REJECT_CONN_CMD:
+                std::cout << "Connection was rejected (too many clients connected)" << std::endl;
+                Shutdown();
+                break;
+            case PACKET_NOTIFICATION:
+            {
+                const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
+                // PacketQueue.push(p);
+                PacketList.push_back(p);
+            }
+            break;
+            case PACKET_ERROR:
+                // std::cout << "=====SERVER ERROR=====" << std::endl;
+                // std::cout << p.payload << std::endl;
+                // std::cout << "============ =========" << std::endl;
+                if (messageHandler)
                 {
-                    std::cerr << "Confirmation buffer not initialized" << std::endl;
+                    std::string payload(p.payload);
+                    messageHandler(payload, Error);
+                }
+                break;
+            case PACKET_INFO:
+                // std::cout << "[SERVER] " << p.payload << std::endl;
+                if (messageHandler)
+                {
+                    std::string payload(p.payload);
+                    messageHandler(payload, Info);
                 }
                 break;
             default:
                 std::cerr << "Client should not receive this message" << std::endl;
-                // Shutdown();
+                Shutdown();
                 break;
             }
         }
@@ -159,12 +105,6 @@ int Client::SendMessageToServer(Message::Packet message)
 
     int r = sendto(this->socketDescr, &message, sizeof(message), 0, (struct sockaddr*)&server_addr,
                    sizeof(server_addr));
-
-    if (r > 0)
-    {
-        std::array<BaseMessage*, 1> arr = {new BaseMessage(message.seqn, message)};
-        confirmationBuffer->Push(arr);
-    }
 
     // printf("Data Sent: %s [return value: %d]\n", buffer, r);
 
