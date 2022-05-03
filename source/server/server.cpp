@@ -182,7 +182,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             // Aguardar N confirmações
 
             // Quando todos os secundarios confirmarem, confirmar essa mensagem.
-            Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
+            // Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
 
             // Recebeu as N confirmações
             // Confirma de volta pro client
@@ -200,7 +200,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 ss << user << ",";
             }
             std::string usersStr = "Connected users: " + ss.str();
-            // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
+            Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
 
             // Broadcast connect notification
             // Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);

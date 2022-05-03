@@ -69,29 +69,6 @@ int main(int argc, const char** argv)
         GUI*    gui    = new GUI(client);
         return gui->run();
 #else
-        std::cout << "Argumentos inválidos." << std::endl;
-        static uint64_t seqn = 0;
-
-        constexpr int         N = 3;
-        ConfirmationBuffer<N> buffer([](ConfirmationBuffer<N>::ItemType& container) {
-            std::cout << "Inside callback, original seqn " << container.originalSeqn << std::endl;
-            for (auto& item : container.content)
-            {
-                std::cout << "seqn " << item.item->GetSequenceNumber() << " was confirmed"
-                          << std::endl;
-            }
-        });
-
-        std::array<BaseMessage*, N> messages = {new BaseMessage(seqn++), new BaseMessage(seqn++),
-                                                new BaseMessage(seqn++)};
-
-        buffer.Push(messages, 10);
-
-        int r = buffer.Confirm(0);
-        r     = buffer.Confirm(1);
-        r     = buffer.Confirm(2);
-
-        // auto el = buffer.Get(0, 0);
         // std::cout << el << std::endl;
 
 #endif

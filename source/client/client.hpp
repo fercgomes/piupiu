@@ -8,6 +8,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include "confirmation-buffer.hpp"
 #include "console/message.hpp"
 
 #include <Packet.hpp>
@@ -41,6 +42,9 @@ private:
     //
     using HandlerFn = std::function<void(std::string, enum MessageType)>;
     HandlerFn messageHandler;
+
+    // Confirmation buffer
+    ConfirmationBuffer<1>* confirmationBuffer;
 
     void Listen();
     void Reorder();

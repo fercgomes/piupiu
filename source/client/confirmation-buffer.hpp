@@ -7,6 +7,7 @@
 #include <mutex>
 #include <utility>
 #include <vector>
+#include "../messaging/Packet.hpp"
 #include "../server/Socket.hpp"
 
 class BaseMessage
@@ -15,10 +16,18 @@ private:
     // Serves as unique identifier
     uint64_t sequenceNumber;
 
+    Message::Packet packet;
+
 public:
     BaseMessage(uint64_t sequenceNumber) : sequenceNumber(sequenceNumber) {}
+    BaseMessage(uint64_t sequenceNumber, Message::Packet packet)
+        : sequenceNumber(sequenceNumber), packet(packet)
+    {
+    }
 
     uint64_t GetSequenceNumber() const { return sequenceNumber; }
+
+    Message::Packet GetPacket() const { return packet; }
 };
 
 struct ConfirmableItem
