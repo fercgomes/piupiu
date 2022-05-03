@@ -5,8 +5,9 @@
 
 typedef struct SocketAddress
 {
-    std::string  address;
-    unsigned int port;
+    std::string address;
+    // unsigned int port;
+    int port;
 
     SocketAddress() = default;
     SocketAddress(std::string address, int port) : address(address), port(port) {}

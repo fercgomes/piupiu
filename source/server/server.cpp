@@ -200,7 +200,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 ss << user << ",";
             }
             std::string usersStr = "Connected users: " + ss.str();
-            Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
+            // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, usersStr));
 
             // Broadcast connect notification
             // Broadcast(Message::MakeInfo(++lastSeqn, username + " has connected."), profile);
@@ -208,7 +208,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         else
         {
             std::cout << "Max connection reach for " << username << std::endl;
-            Reply(incomingAddress, Message::MakeRejectConnCommand(++lastSeqn));
+            // Reply(incomingAddress, Message::MakeRejectConnCommand(++lastSeqn));
         }
 
         if (replicaManager->IsPrimary())
@@ -241,14 +241,14 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             int ended = sessionManager->EndSession(profile, incomingAddress);
 
             // Broadcast connect notification
-            Broadcast(Message::MakeInfo(++lastSeqn, username + " has disconnected."), profile);
+            // Broadcast(Message::MakeInfo(++lastSeqn, username + " has disconnected."), profile);
 
             std::cout << "Connections ended: " << ended << std::endl;
         }
         else
         {
             std::cout << "No profile found to disconnect" << std::endl;
-            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
+            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
         }
 
         break;
@@ -264,7 +264,8 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
 
             if (usernameToFollow.compare(username) == 0)
             {
-                Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow yourself"));
+                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow
+                // yourself"));
                 return;
             }
 
@@ -272,25 +273,25 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             {
                 if (!profile->AddFollower(username))
                 {
-                    Reply(incomingAddress,
-                          Message::MakeError(++lastSeqn, "You're already following this user"));
+                    // Reply(incomingAddress,
+                    //       Message::MakeError(++lastSeqn, "You're already following this user"));
                 }
                 else
                 {
-                    Reply(incomingAddress,
-                          Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
+                    // Reply(incomingAddress,
+                    //       Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
                 }
             }
             else
             {
                 std::cerr << "Profile " << usernameToFollow << " not found." << std::endl;
-                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
+                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
             }
         }
         else
         {
             std::cerr << "You're not authenticated" << std::endl;
-            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -318,18 +319,18 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                     }
                 }
 
-                Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "Message sent."));
+                // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "Message sent."));
             }
             else
             {
                 std::cerr << host << " is not authenticated." << std::endl;
-                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
             }
         }
         else
         {
             std::cerr << host << " is not authenticated." << std::endl;
-            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -364,7 +365,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 }
 
                 response = ss.str();
-                Reply(incomingAddress, Message::MakeInfo(++lastSeqn, response));
+                // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, response));
             }
         }
 
@@ -377,8 +378,9 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         break;
     }
     default:
-        std::cerr << "Server should receive this message type" << std::endl;
-        Reply(incomingAddress, Message::MakeError(++lastSeqn, "Invalid command"));
+        std::cerr << "Server should receive this message type: " << Message::TypeToStr(message.type)
+                  << std::endl;
+        // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Invalid command"));
         break;
     }
 
