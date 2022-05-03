@@ -20,6 +20,12 @@
 
 #define PACKET_HEARTBEAT 11
 
+#define PACKET_ELECTION 12
+
+#define PACKET_ANSWER 13
+
+#define PACKET_COORDINATOR 14
+
 #define PACKET_MAX_PAYLOAD_LEN 512
 
 /*
@@ -52,6 +58,11 @@ Packet MakeError(uint64_t lastSeqn, std::string reason);
 Packet MakeInfo(uint64_t lastSeqn, std::string message);
 Packet MakeRequestUserInfo(uint64_t lastSeqn);
 Packet MakeHeartbeatMessage();
+
+Packet MakeElection(uint64_t lastSeqn);
+Packet MakeReply(uint64_t lastSeqn, std::string sender);
+Packet Coordinator(uint64_t lastSeqn, std::string ip_addr, int port_number);
+
 
 Packet MakeConfirmStateChangeMessage(uint64_t seqnToBeConfirmed);
 

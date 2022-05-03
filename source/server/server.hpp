@@ -27,10 +27,15 @@ private:
 
     Socket _socket;
 
+    bool                            electionStarted                 = false;
+    std::time_t                     lastElectionTimestamp;
+
+
     bool                            isListening                     = true;
     std::unique_ptr<std::thread>    listeningThread                 = nullptr;
     std::unique_ptr<std::thread>    pendingNotificationWorkerThread = nullptr;
     std::unique_ptr<std::thread>    heartBeatWorkerThread           = nullptr;
+    std::unique_ptr<std::thread>    electionTimeoutWorkerThread           = nullptr;
     std::vector<std::thread>        messageHandlerThreads;
     std::queue<PendingNotification> notificationQueue;
 
@@ -44,6 +49,7 @@ private:
     void Listen();
     void PendingNotificationWorker();
     void HeartbeatNotificationWorker();
+    void ElectionTimeoutWorker();
     void ElectionAlgorithmProcess();
     void ParseInput(const char* buffer);
     void MessageHandler(Message::Packet message, SocketAddress sockAddr);

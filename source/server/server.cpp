@@ -118,20 +118,29 @@ void Server::PendingNotificationWorker()
 
 void Server::ElectionAlgorithmProcess()
 {
-    //First Try
-    //We have to pick up all ports of secondary replica manager
-    //and elects the one with the higher port number
+    //Current time
+    lastElectionTimestamp = std::time(nullptr);
 
     //Let's pick up all the secondary replicas
     std::vector<Peer> secondary_connections = replicaManager->GetSecondaryReplicas();
 
-    //Pick up the bigger port between these connections
-    auto max = *std::max_element(secondary_connections.begin(),
-                                secondary_connections.end(),
-                                [](const st& a,const st& b) { return a.port < b.port; });
+    //Fetch peers using port as a parameter
+    for (auto i = secondary_connections.begin(); i != secondary_connections.end(); i++)
+    {
+        if(this->bindPort > i->port)
+        {
+            //TODO make new SocketAddress
+            SocketAddress peerAddr = new SocketAddress(this->bindAddress, this->bindPort);
+            Reply(peerAddr, Message::MakeElection(++lastSeqn));
+        }
+    }
 
     //Let's switch the selected process primary flag to true
-    max.primary = true;
+    //std::cout << "Peer selected" << max << std::endl;
+    max->primary = true;
+
+    //TODO - Message Server to Client to update the primary replica
+
 }
 
 void Server::HeartbeatNotificationWorker()
@@ -147,7 +156,7 @@ void Server::HeartbeatNotificationWorker()
                 sleep(4);
                 if (std::time(nullptr) - lastHeartbeatTimestamp > 9) {
                     std::cout << "A new election algorithm should start here" << std::endl;
-
+                    ElectionAlgorithmProcess();
 
                 }
                 else
@@ -158,6 +167,52 @@ void Server::HeartbeatNotificationWorker()
     }
     
 }
+
+
+void Server::ElectionTimeoutWorker()
+{
+    while (true)
+    {
+        if (!(replicaManager->IsPrimary())) {
+                sleep(1);
+                if(std::time(nullptr) - lastElectionTimestamp > 3)
+                {
+                    std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
+
+                    for(auto peer = peers.begin(); peer != peers.end(); peer++)
+                    {
+                        SocketAddress peerAddr = new SocketAddress(peer.bindAddress, peer.bindPort);
+                        Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
+                    }
+                    //Deletar o atual primary
+                    std::vector<Peer> remaining_peers = ReplicaManager.peers;
+                    for(auto peer = remaining_peers.begin(); peer != remaining_peers.end(); peer++)
+                    {
+                         if(peer.isPrimary())
+                         {
+                             delete peer->second;
+                         }
+                    }
+
+                    //Como as funções de session manager pegam o IP e Porta usando
+                    //a função GetPrimaryReplica, o que precisamos fazer entao 
+                    //é transformar a secundaria eleita em primaria
+                    ReplicaManager.primary = true;
+
+                    //Retransmitir o endereço e porta para os clients conectados
+                    std::vector<Sessions> clients_connected = SessionManager.GetSessions();
+
+                    for(auto client = clients_connected.begin(); client != clients_connected.end(); client++)
+                    {
+                        //Transmite o endereço do novo primario aos clients
+                        SocketAddress clientAddr = new SocketAddress(client.bindAddress, client.bindPort);
+                        Reply(clientAddr, Message::Coordinator(++lastSeqn, client.bindAddress, client.bindPort));
+                    }
+                }
+        }
+    }
+}
+
 
 void Server::Start()
 {
@@ -171,6 +226,11 @@ void Server::Start()
     // Spawn heartbeat worker thread
     this->heartBeatWorkerThread =
         std::make_unique<std::thread>(&Server::HeartbeatNotificationWorker, this);
+
+    // Spawn election worker thread
+    this->electionTimeoutWorkerThread =
+        std::make_unique<std::thread>(&Server::ElectionTimeoutWorker, this);
+
 
     while (1)
         ;
@@ -449,6 +509,39 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         {
             std::cout << "Primary sent me a heartbeat. I will still be secondary" << std::endl;
             lastHeartbeatTimestamp = std::time(nullptr);
+        }
+        break;
+    }
+    case PACKET_ANSWER:
+    {
+        electionStarted = false;
+        //If a reply was received
+        std::cerr << host << "Answer the election!!!" << std::endl;
+        break;
+    }
+    case PACKET_COORDINATOR:
+    {
+        std::vector<Peer> avaliable_peers = ReplicaManager.peers;
+        for(auto peer= avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
+        {
+            if(peer.address.compare(bindAddress) && (peer.port == bindPort))
+            {
+                peer.primary = true;
+            }
+            else
+            {
+                peer.primary = false;
+            }
+        }
+        std::cerr << host << "Answer the election!!!" << std::endl;
+        break;
+    }
+    case PACKET_ELECTION:
+    {
+        Reply(incomingAddress, Message::MakeReply(++lastSeqn, response));
+        if(electionStarted)
+        {
+            ElectionAlgorithmProcess();
         }
         break;
     }

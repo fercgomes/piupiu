@@ -1,6 +1,8 @@
 #include "Packet.hpp"
 #include <iostream>
 
+int_addr_t lastAddrReceive = 0;
+
 namespace Message
 {
 
@@ -87,6 +89,18 @@ Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string send
 
     return p;
 }
+
+Packet MakeElection(uint64_t lastSeqn)
+{
+    Packet p = {.type      = PACKET_NOTIFICATION,
+                .seqn      = lastSeqn + 1,
+                .length    = message.length(),
+                .timestamp = std::time(nullptr)};
+
+
+     return p;
+}
+
 
 Packet MakeError(uint64_t lastSeqn, std::string reason)
 {
@@ -177,6 +191,18 @@ const char* TypeToStr(uint16_t type)
     case PACKET_HEARTBEAT:
     {
         return "PACKET_HEARTBEAT";
+    }
+    case PACKET_ELECTION:
+    {
+        return "PACKET_ELECTION";
+    }
+    case PACKET_ANSWER:
+    {
+        return "PACKET_ANSWER";
+    }
+    case PACKET_COORDINATOR:
+    {
+        return "PACKET_COORDINATOR";
     }
     case PACKET_ERROR:
         return "PACKET_ERROR";

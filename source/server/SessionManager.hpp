@@ -29,6 +29,8 @@ public:
 
     ProfileManager* GetProfileManager() const;
 
+    Session* GetSessions() const;
+
 private:
     ProfileManager*                 profileManager;
     std::map<std::string, Session*> sessions;

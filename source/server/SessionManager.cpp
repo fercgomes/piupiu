@@ -15,6 +15,11 @@ SessionManager::~SessionManager()
     }
 }
 
+Session* GetSessions()
+{
+    return sessions;
+}
+
 Session* SessionManager::StartSession(Profile* profile, SocketAddress sender)
 {
     // Esse seria o lugar certo de ativar o mutex?
