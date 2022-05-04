@@ -133,6 +133,7 @@ void ReplicaManager::DeletePrimaryReplica()
         if (it->primary)
         {
             peers.erase(it);
+            return;
         }
     }
 }
