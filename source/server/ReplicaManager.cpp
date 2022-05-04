@@ -39,6 +39,14 @@ ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std:
 
                     // TODO: Adicionar as outras confirmaçoes
 
+                case PACKET_SEND_CMD:
+                {
+                    this->GetServer()->GetSocket()->Send(
+                        container.originalHost,
+                        Message::MakeNotification(message.seqn, message.payload,
+                                                  container.originalHost.address));
+                }
+
                 default:
                     std::cout << "ops" << std::endl;
                     break;

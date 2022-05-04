@@ -319,7 +319,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             std::cout << "[connect user] primary" << std::endl;
 
             // broadcast state change to secondaries
-            Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
+            // Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
             replicaManager->BroadcastToSecondaries(message, incomingAddress);
             std::cout << "debug dos guris funcionando" << std::endl;
         }
