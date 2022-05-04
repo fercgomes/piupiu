@@ -128,14 +128,13 @@ std::vector<Peer> ReplicaManager::GetPeersList()
 
 void ReplicaManager::DeletePrimaryReplica()
 {
-    for (auto peer : peers)
+    for (auto it = peers.begin(); it != peers.end(); it++)
     {
-        if (peer.primary) delete &peer;
+        if (it->primary)
+        {
+            peers.erase(it);
+        }
     }
-
-    std::cerr << "No primary peer found" << std::endl;
-    throw std::invalid_argument("No primary peer found");
-
 }
 
 int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddress senderAddress)
