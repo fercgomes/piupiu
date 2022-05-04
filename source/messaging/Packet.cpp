@@ -51,14 +51,17 @@ Packet MakeRejectConnCommand(uint64_t lastSeqn)
     return p;
 }
 
-Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle)
+Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle, std::string sender)
 {
     Packet p = {.type      = PACKET_FOLLOW_CMD,
                 .seqn      = lastSeqn + 1,
                 .length    = handle.length(),
                 .timestamp = std::time(nullptr)};
 
-    strcpy(p.payload, handle.c_str());
+    std::stringstream ss;
+    ss << sender << "\n" << handle;
+    std::string s = ss.str();
+    strcpy(p.payload, s.c_str());
 
     return p;
 }
@@ -96,10 +99,8 @@ Packet MakeElection(uint64_t lastSeqn)
                 .length    = 0,
                 .timestamp = std::time(nullptr)};
 
-
-     return p;
+    return p;
 }
-
 
 Packet MakeError(uint64_t lastSeqn, std::string reason)
 {
@@ -161,10 +162,8 @@ Packet MakeReply(uint64_t lastSeqn, std::string sender)
 
 Packet Coordinator(uint64_t lastSeqn, std::string ip_addr, int port_number)
 {
-    Packet p = {.type      = PACKET_COORDINATOR,
-                .seqn      = lastSeqn,
-                .length    = 0,
-                .timestamp = std::time(nullptr)};
+    Packet p = {
+        .type = PACKET_COORDINATOR, .seqn = lastSeqn, .length = 0, .timestamp = std::time(nullptr)};
     std::stringstream ss;
     ss << ip_addr << ":" << port_number;
     std::string output = ss.str();
@@ -175,10 +174,7 @@ Packet Coordinator(uint64_t lastSeqn, std::string ip_addr, int port_number)
 
 Packet MakeHeartbeatMessage()
 {
-    Packet p = {.type      = PACKET_HEARTBEAT,
-                .seqn      = 0,
-                .length    = 0,
-                .timestamp = std::time(nullptr)};
+    Packet p = {.type = PACKET_HEARTBEAT, .seqn = 0, .length = 0, .timestamp = std::time(nullptr)};
 
     return p;
 }

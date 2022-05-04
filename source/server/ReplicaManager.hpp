@@ -44,7 +44,7 @@ private:
     /** Lista de hosts conectados na rede */
     std::vector<Peer> peers;
 
-    std::unique_ptr<ConfirmationBuffer<3>> confirmationBuffer = nullptr;
+    std::unique_ptr<ConfirmationBuffer<2>> confirmationBuffer = nullptr;
     std::vector<std::string>               SplitPeerList(std::string peerList);
 
     std::vector<Peer> ParsePeersArgument(std::string peersStr);

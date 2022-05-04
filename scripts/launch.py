@@ -5,14 +5,14 @@ import subprocess
 import sys
 import threading
 from os import path
+from time import sleep
 
 from colored import attr, bg, fg
 
 peers = [
     ("127.0.0.1", 6000, True),
     ("127.0.0.1", 6001, False),
-    ("127.0.0.1", 6002, False),
-    ("127.0.0.1", 6003, False)
+    ("127.0.0.1", 6002, False)
 ]
 
 bin_dir = path.abspath(path.join('../', 'build', 'bin'))
@@ -50,19 +50,20 @@ procs = []
 threads = []
 running = True
 
-def log_thread(proc, peer, index):
+def log_thread(proc, peer, index, pid):
     while True:
         inline = proc.stdout.readline()
 
         if not inline:
             break
 
-        sys.stdout.write(colors[index] + "[" + ("PRIMARY" if peer[2] else "SECONDARY") + " PEER " + peer[0] + ":" + str(peer[1]) + "] ")
+        sys.stdout.write(colors[index] + "[" + str(pid) + " " + ("PRIMARY" if peer[2] else "SECONDARY") + " PEER " + peer[0] + ":" + str(peer[1]) + "] ")
         sys.stdout.write(inline.decode() + reset)
         sys.stdout.flush()
 
 
 def main():
+    primary = 0
 
     try:
         for index, peer in enumerate(peers):
@@ -74,9 +75,17 @@ def main():
             p = subprocess.Popen(server_bin, shell=True, env=env, stdout=subprocess.PIPE)
             procs.append((peer, p))
 
-            x = threading.Thread(target=log_thread, args=(p, peer, index))
+            x = threading.Thread(target=log_thread, args=(p, peer, index, p.pid))
             x.start()
             threads.append(x)
+            
+
+    
+        sleep(10)
+        print("==== KILLING PRIMARY")
+        (_, primary) = procs[0]
+        print(primary.pid)
+        os.kill(primary.pid, signal.SIGINT)
 
     except KeyboardInterrupt:
         print("Captured keyboard interrupt")

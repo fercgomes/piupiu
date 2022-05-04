@@ -48,8 +48,8 @@ void Client::Listen()
     {
         int n, len;
 
-        n = recvfrom(this->socketDescr, &p, sizeof(p), MSG_WAITALL, (struct sockaddr*)&incAddr, &incAddrlen);
-        std::cout << "aqui" << std::endl;
+        n = recvfrom(this->socketDescr, &p, sizeof(p), MSG_WAITALL, (struct sockaddr*)&incAddr,
+                     &incAddrlen);
 
         if (n > 0)
         {
@@ -57,7 +57,7 @@ void Client::Listen()
             {
             case PACKET_ACCEPT_CONN_CMD:
                 connected = true;
-                std::cout << "Client is connected" << std::endl;
+                // std::cout << "Client is connected" << std::endl;
                 break;
             case PACKET_REJECT_CONN_CMD:
                 std::cout << "Connection was rejected (too many clients connected)" << std::endl;
@@ -88,14 +88,15 @@ void Client::Listen()
                     messageHandler(payload, Info);
                 }
                 break;
-            case PACKET_COORDINATOR: 
+            case PACKET_COORDINATOR:
             {
-                // std::cout << "[SERVER] " << p.payload << std::endl;            
-                    
+                // std::cout << "[SERVER] " << p.payload << std::endl;
+
                 std::string address = std::string(inet_ntoa(incAddr.sin_addr));
-                int port    = ntohs(incAddr.sin_port);
+                int         port    = ntohs(incAddr.sin_port);
                 SetServerAddress(address);
                 SetServerPort(port);
+                messageHandler("New coordinator", Info);
                 std::cout << "I have a new coordinator. Updating " << p.payload << std::endl;
 
                 break;
@@ -178,7 +179,7 @@ int Client::Connect(std::string profileHandle, std::string serverAddress, int se
 
 int Client::FollowUser(std::string profile)
 {
-    this->SendMessageToServer(Message::MakeFollowCommand(++lastSentSeqn, profile));
+    this->SendMessageToServer(Message::MakeFollowCommand(++lastSentSeqn, profile, profileHandle));
 
     return 0;
 }

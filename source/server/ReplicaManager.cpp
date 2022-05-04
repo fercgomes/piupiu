@@ -20,8 +20,8 @@ ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std:
 
     if (primary)
     {
-        confirmationBuffer = std::make_unique<ConfirmationBuffer<3>>(
-            [=](ConfirmationBuffer<3>::ItemType& container) {
+        confirmationBuffer = std::make_unique<ConfirmationBuffer<2>>(
+            [=](ConfirmationBuffer<2>::ItemType& container) {
                 std::cout << "Inside callback, original seqn " << container.originalSeqn
                           << std::endl;
 
@@ -124,7 +124,50 @@ Peer ReplicaManager::GetPrimaryReplica()
     throw std::invalid_argument("No primary peer found");
 }
 
-void ReplicaManager::MakePrimaryReplica() { thisPeer.primary = true; }
+void ReplicaManager::MakePrimaryReplica()
+{
+    thisPeer.primary = true;
+
+    confirmationBuffer =
+        std::make_unique<ConfirmationBuffer<2>>([=](ConfirmationBuffer<2>::ItemType& container) {
+            std::cout << "Inside callback, original seqn " << container.originalSeqn << std::endl;
+
+            // BUG: tem que confirmar pro client original
+            // Aqui tá mandando sempre pro primary
+
+            auto message = container.content[0].item->GetPacket();
+            switch (message.type)
+            {
+            case PACKET_CONNECT_CMD:
+                this->GetServer()->GetSocket()->Send(
+                    container.originalHost, Message::MakeAcceptConnCommand(container.originalSeqn));
+                break;
+
+                // TODO: Adicionar as outras confirmaçoes
+
+            case PACKET_SEND_CMD:
+            {
+                this->GetServer()->GetSocket()->Send(
+                    container.originalHost,
+                    Message::MakeNotification(message.seqn, message.payload,
+                                              container.originalHost.address));
+            }
+
+            default:
+                std::cout << "ops" << std::endl;
+                break;
+            }
+
+            for (auto& item : container.content)
+            {
+                std::cout << "seqn " << item.item->GetSequenceNumber() << " was confirmed"
+                          << std::endl;
+            }
+        });
+
+    // Assume que quando rodar isso é pq uma replica caiu
+    confirmationBuffer->IncOffset();
+}
 
 std::vector<Peer> ReplicaManager::GetPeersList() { return peers; }
 
@@ -150,8 +193,7 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddres
     // uint64_t lastSeqn = 0;
 
     // Gambiarra!!
-    std::array<BaseMessage*, 3> messages = {new BaseMessage(lastSeqn++, message),
-                                            new BaseMessage(lastSeqn++, message),
+    std::array<BaseMessage*, 2> messages = {new BaseMessage(lastSeqn++, message),
                                             new BaseMessage(lastSeqn++, message)};
 
     for (int i = 0; i < 3; i++)

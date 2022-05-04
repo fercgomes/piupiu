@@ -132,6 +132,16 @@ public:
         return confirmed;
     }
 
+    void SetOffset(int n)
+    {
+        if (n <= N) offset = n;
+    }
+
+    void IncOffset()
+    {
+        if (offset < N) offset++;
+    }
+
 private:
     std::vector<ItemType> buffer;
     std::mutex            bufferMutex;
@@ -139,10 +149,12 @@ private:
     /** Function that is called whenever a confirmable container is confirmed */
     std::function<CallbackFn> callback;
 
+    int offset = 0;
+
     bool ContainerConfirmed(ItemType& container)
     {
         bool confirmed = true;
-        for (int i = 0; i < N; i++)
+        for (int i = 0; i < N - offset; i++)
         {
             if (container.content[i].confirmed == false) { confirmed = false; }
         }

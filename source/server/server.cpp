@@ -12,6 +12,20 @@
 #include <string>
 #include "PendingNotification.hpp"
 
+static std::vector<std::string> Split2(std::string a, const char delimiter)
+{
+    std::stringstream        ss(a);
+    std::string              str;
+    std::vector<std::string> results;
+
+    while (std::getline(ss, str, delimiter))
+    {
+        results.push_back(str);
+    }
+
+    return results;
+};
+
 Server::Server(std::string bindAddress, int bindPort, std::string peersList, bool primary)
     : bindAddress(bindAddress), bindPort(bindPort)
 {
@@ -118,7 +132,7 @@ void Server::PendingNotificationWorker()
 void Server::ElectionAlgorithmProcess()
 {
     electionStarted = true;
-    //Current time
+    // Current time
     lastElectionTimestamp = std::time(nullptr);
 
     // Let's pick up all the secondary replicas
@@ -127,7 +141,7 @@ void Server::ElectionAlgorithmProcess()
     // Fetch peers using port as a parameter
     for (auto i = secondary_connections.begin(); i != secondary_connections.end(); i++)
     {
-        if(this->bindPort < i->port)
+        if (this->bindPort < i->port)
         {
             // TODO make new SocketAddress
             SocketAddress peerAddr = SocketAddress(this->bindAddress, this->bindPort);
@@ -156,7 +170,7 @@ void Server::HeartbeatNotificationWorker()
             else
             {
                 std::cout << "Nothing to do here" << std::endl;
-            } 
+            }
         }
     }
 }
@@ -169,23 +183,16 @@ void Server::ElectionTimeoutWorker()
 {
     while (true)
     {
-        if (!(replicaManager->IsPrimary())) {
-                sleep(1);
-                if(std::time(nullptr) - lastElectionTimestamp > 5 && electionStarted == true) 
-                {
-                    std::cout << "I got no response of my election." << std::endl;
-                    std::cout << "Starting bully. I'm the new coordinator" << std::endl;
-                    std::cout << lastElectionTimestamp << std::endl;
-                    std::cout << std::time(nullptr) << std::endl;
-                    std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
-
-                    for(auto peer = peers.begin(); peer != peers.end(); peer++)
-                    {
-                        SocketAddress peerAddr = peer->GetSocketAddress();
-                        Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
-                    }
-                    //Deletar o atual primary
-                    replicaManager->DeletePrimaryReplica();
+        if (!(replicaManager->IsPrimary()))
+        {
+            sleep(1);
+            if (std::time(nullptr) - lastElectionTimestamp > 5 && electionStarted == true)
+            {
+                std::cout << "I got no response of my election." << std::endl;
+                std::cout << "Starting bully. I'm the new coordinator" << std::endl;
+                std::cout << lastElectionTimestamp << std::endl;
+                std::cout << std::time(nullptr) << std::endl;
+                std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
 
                 for (auto peer = peers.begin(); peer != peers.end(); peer++)
                 {
@@ -195,34 +202,46 @@ void Server::ElectionTimeoutWorker()
                 // Deletar o atual primary
                 replicaManager->DeletePrimaryReplica();
 
-                    //Como as fun��es de session manager pegam o IP e Porta usando
-                    //a fun��o GetPrimaryReplica, o que precisamos fazer entao 
-                    //� transformar a secundaria eleita em primaria
-                    std::cout << "Making myself as primary replica" << std::endl;
-                    replicaManager->MakePrimaryReplica();
+                for (auto peer = peers.begin(); peer != peers.end(); peer++)
+                {
+                    SocketAddress peerAddr = peer->GetSocketAddress();
+                    Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
+                }
+                // Deletar o atual primary
+                replicaManager->DeletePrimaryReplica();
 
+                // Como as fun��es de session manager pegam o IP e Porta usando
+                // a fun��o GetPrimaryReplica, o que precisamos fazer entao
+                //� transformar a secundaria eleita em primaria
+                std::cout << "Making myself as primary replica" << std::endl;
+                replicaManager->MakePrimaryReplica();
 
-
-                    //Retransmitir o endere�o e porta para os clients conectados
-                    std::vector<Session*> clients_connected = sessionManager->GetSessions();
+                // Retransmitir o endere�o e porta para os clients conectados
+                std::vector<Session*> clients_connected = sessionManager->GetSessions();
+                std::cout << "=========================" << std::endl;
+                std::cout << "sessions " << clients_connected.size() << std::endl;
 
                 for (auto client = clients_connected.begin(); client != clients_connected.end();
                      client++)
                 {
                     // Transmite o endere�o do novo primario aos clients
                     // SocketAddress clientAddr = SocketAddress(client.bindAddress, client.bindPort);
+                    auto a = *client;
+                    std::cout << a->profile << std::endl;
                     std::vector<SocketAddress> client_sockets = (*client)->sockets;
                     for (auto socket_cli = client_sockets.begin();
                          socket_cli != client_sockets.end(); socket_cli++)
                     {
-                        //Transmite o endere�o do novo primario aos clients
-                        //SocketAddress clientAddr = SocketAddress(client.bindAddress, client.bindPort);
-                        std::vector<SocketAddress> client_sockets = (*client)->sockets;
-                        for(auto socket_cli = client_sockets.begin(); socket_cli != client_sockets.end(); socket_cli++)
-                        {
-                            SocketAddress clientTransmission = *socket_cli;
-                            Reply(clientTransmission, Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
-                        }
+                        // Transmite o endere�o do novo primario aos clients
+                        // SocketAddress clientAddr = SocketAddress(client.bindAddress,
+                        // client.bindPort);
+                        SocketAddress clientTransmission = *socket_cli;
+                        std::cout << "sending to " << clientTransmission.address << ":"
+                                  << clientTransmission.port << std::endl;
+
+                        _socket.Send(
+                            clientTransmission,
+                            Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
                     }
                 }
             }
@@ -264,7 +283,8 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     ss << incomingAddress.address << ":" << incomingAddress.port;
     std::string host = ss.str();
 
-    std::cout << "Handling message (threadId: " << thisId << ")" << std::endl;
+    std::cout << "Handling message (threadId: " << thisId
+              << ") type=" << Message::TypeToStr(message.type) << std::endl;
     // printf("type=%u\nseqn=%u\ntimestamp=%u\nlen=%u\npayload=%s\n", message.type, message.seqn,
     // message.timestamp, message.length, message.payload);
 
@@ -389,53 +409,65 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_FOLLOW_CMD:
     {
-        std::string usernameToFollow(message.payload);
-        std::string username;
+        // std::string usernameToFollow(message.payload);
+        auto        splits           = Split2(std::string(message.payload), '\n');
+        std::string username         = splits[0];
+        std::string usernameToFollow = splits[1];
 
-        if (sessionManager->GetUserNameByAddressAndIP(incomingAddress, username))
+        // if (sessionManager->GetUserNameByAddressAndIP(incomingAddress, username))
+        // {
+        std::cout << "[FOLLOW] Found session" << std::endl;
+        Profile* profile = profileManager->GetProfileByName(usernameToFollow);
+
+        if (usernameToFollow.compare(username) == 0)
         {
-            Profile* profile = profileManager->GetProfileByName(usernameToFollow);
-
-            if (usernameToFollow.compare(username) == 0)
+            std::cout << "user trying to follow himself" << std::endl;
+            if (replicaManager->IsPrimary())
             {
-                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow
-                // yourself"));
-                return;
+                Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow yourself"));
             }
+            return;
+        }
 
-            if (profile)
+        if (profile)
+        {
+            std::cout << "[FOLLOW] Found user" << std::endl;
+            if (!profile->AddFollower(username))
             {
-                if (!profile->AddFollower(username))
-                {
-                    // Reply(incomingAddress,
-                    //       Message::MakeError(++lastSeqn, "You're already following this user"));
-                }
-                else
-                {
-                    if (replicaManager->IsPrimary())
-                    {
-                        Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "You're following " +
-                                                                                 usernameToFollow));
-                    }
-                    else
-                    {
-                        std::cout << "[follow] secondary - You're following" + usernameToFollow
-                                  << std::endl;
-                        replicaManager->ConfirmMessage(message.seqn);
-                    }
-                }
+                std::cout << "Already following this user " << std::endl;
+                // Reply(incomingAddress,
+                //       Message::MakeError(++lastSeqn, "You're already following this user"));
             }
             else
             {
-                std::cerr << "Profile " << usernameToFollow << " not found." << std::endl;
-                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
+                if (replicaManager->IsPrimary())
+                {
+                    std::cout << "[Primary] following " << usernameToFollow << std::endl;
+                    // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "You're following "
+                    // +
+                    //                                                          usernameToFollow));
+
+                    replicaManager->BroadcastToSecondaries(message, incomingAddress);
+                }
+                else
+                {
+                    std::cout << "[follow] secondary - You're following" + usernameToFollow
+                              << std::endl;
+                    replicaManager->ConfirmMessage(message.seqn);
+                }
             }
         }
         else
         {
-            std::cerr << "You're not authenticated" << std::endl;
-            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+            std::cout << "Profile " << usernameToFollow << " not found." << std::endl;
+            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
         }
+        // }
+        // else
+        // {
+        //     std::cout << "You're not authenticated" << std::endl;
+        //     // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+        // }
         break;
     }
     case PACKET_SEND_CMD:
@@ -530,16 +562,16 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         {
             std::cout << "Primary sent me a heartbeat. I will still be secondary" << std::endl;
             lastHeartbeatTimestamp = std::time(nullptr);
-            lastElectionTimestamp = std::time(nullptr);
-
+            lastElectionTimestamp  = std::time(nullptr);
         }
         break;
     }
     case PACKET_REPLY:
     {
         electionStarted = false;
-        //If a reply was received
-        std::cerr << host << "I got an answer from an election process. Aborting my own election!!!" << std::endl;
+        // If a reply was received
+        std::cerr << host << "I got an answer from an election process. Aborting my own election!!!"
+                  << std::endl;
         break;
     }
     case PACKET_COORDINATOR:
@@ -548,10 +580,11 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         for (auto peer = avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
         {
             Peer currentPeer = *peer;
-            if( (!currentPeer.address.compare(incomingAddress.address)) && (currentPeer.port == incomingAddress.port))
+            if ((!currentPeer.address.compare(incomingAddress.address)) &&
+                (currentPeer.port == incomingAddress.port))
             {
                 currentPeer.primary = true;
-                std::cerr << host << "Updating new coordinator!!!" << std::endl;          
+                std::cerr << host << "Updating new coordinator!!!" << std::endl;
             }
             else
             {
@@ -563,16 +596,15 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_ELECTION:
     {
-        Reply(incomingAddress, Message::MakeReply(++lastSeqn, "There is an election going on. Starting my own election"));
-        if(!electionStarted)
-        {
-            ElectionAlgorithmProcess();
-        }
+        Reply(incomingAddress,
+              Message::MakeReply(++lastSeqn,
+                                 "There is an election going on. Starting my own election"));
+        if (!electionStarted) { ElectionAlgorithmProcess(); }
         break;
     }
     default:
         std::cerr << "Server should not receive this message type" << std::endl;
-        Reply(incomingAddress, Message::MakeError(++lastSeqn, "Invalid command"));
+        // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Invalid command"));
         break;
     }
 
