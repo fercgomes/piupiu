@@ -29,7 +29,8 @@ public:
 
     ProfileManager* GetProfileManager() const;
 
-    Session* GetSessions() const;
+    // TODO - Função para retornar a lista de clients
+    std::vector<Session*> GetSessions();
 
 private:
     ProfileManager*                 profileManager;

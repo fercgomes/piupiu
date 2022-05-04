@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <thread>
 #include <unistd.h>
+#include "confirmation-buffer.hpp"
 #include "utils.hpp"
 
 #define BUFFER_SIZE 1024
@@ -19,8 +20,6 @@ Client::Client(std::string profileHandle, std::string serverAddress, int serverP
 {
     this->profileHandle = trim_copy(profileHandle);
     lastSentSeqn        = 0;
-
-    // HelpInfo();
 }
 
 Client::Client() { lastSentSeqn = 0; }
@@ -43,6 +42,7 @@ void Client::Listen()
         int n, len;
 
         n = recvfrom(this->socketDescr, &p, sizeof(p), MSG_WAITALL, NULL, NULL);
+        std::cout << "aqui" << std::endl;
 
         if (n > 0)
         {
@@ -81,12 +81,8 @@ void Client::Listen()
                     messageHandler(payload, Info);
                 }
                 break;
-            case PACKET_CONFIRM_STATE_CHANGE:
-                std::cout << "Confirm state changed seqn=" << p.seqn << std::endl;
-                if (messageHandler) messageHandler(std::string("state change"), Info);
-                break;
             default:
-                // std::cerr << "Client should not receive this message" << std::endl;
+                std::cerr << "Client should not receive this message" << std::endl;
                 Shutdown();
                 break;
             }

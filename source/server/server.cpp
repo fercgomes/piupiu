@@ -130,17 +130,10 @@ void Server::ElectionAlgorithmProcess()
         if(this->bindPort > i->port)
         {
             //TODO make new SocketAddress
-            SocketAddress peerAddr = new SocketAddress(this->bindAddress, this->bindPort);
+            SocketAddress peerAddr = SocketAddress(this->bindAddress, this->bindPort);
             Reply(peerAddr, Message::MakeElection(++lastSeqn));
         }
     }
-
-    //Let's switch the selected process primary flag to true
-    //std::cout << "Peer selected" << max << std::endl;
-    max->primary = true;
-
-    //TODO - Message Server to Client to update the primary replica
-
 }
 
 void Server::HeartbeatNotificationWorker()
@@ -169,6 +162,16 @@ void Server::HeartbeatNotificationWorker()
 }
 
 
+std::string Server::GetIpAddr()
+{
+    return bindAddress;
+}
+
+int Server::GetPort()
+{
+    return bindPort;
+}    
+
 void Server::ElectionTimeoutWorker()
 {
     while (true)
@@ -181,32 +184,32 @@ void Server::ElectionTimeoutWorker()
 
                     for(auto peer = peers.begin(); peer != peers.end(); peer++)
                     {
-                        SocketAddress peerAddr = new SocketAddress(peer.bindAddress, peer.bindPort);
+                        SocketAddress peerAddr = peer->GetSocketAddress();
                         Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
                     }
                     //Deletar o atual primary
-                    std::vector<Peer> remaining_peers = ReplicaManager.peers;
-                    for(auto peer = remaining_peers.begin(); peer != remaining_peers.end(); peer++)
-                    {
-                         if(peer.isPrimary())
-                         {
-                             delete peer->second;
-                         }
-                    }
+                    replicaManager->DeletePrimaryReplica();
+
+                    
 
                     //Como as funções de session manager pegam o IP e Porta usando
                     //a função GetPrimaryReplica, o que precisamos fazer entao 
                     //é transformar a secundaria eleita em primaria
-                    ReplicaManager.primary = true;
+                    replicaManager->MakePrimaryReplica();
 
                     //Retransmitir o endereço e porta para os clients conectados
-                    std::vector<Sessions> clients_connected = SessionManager.GetSessions();
+                    std::vector<Session*> clients_connected = sessionManager->GetSessions();
 
                     for(auto client = clients_connected.begin(); client != clients_connected.end(); client++)
                     {
                         //Transmite o endereço do novo primario aos clients
-                        SocketAddress clientAddr = new SocketAddress(client.bindAddress, client.bindPort);
-                        Reply(clientAddr, Message::Coordinator(++lastSeqn, client.bindAddress, client.bindPort));
+                        //SocketAddress clientAddr = SocketAddress(client.bindAddress, client.bindPort);
+                        std::vector<SocketAddress> client_sockets = (*client)->sockets;
+                        for(auto socket_cli = client_sockets.begin(); socket_cli != client_sockets.end(); socket_cli++)
+                        {
+                            SocketAddress clientTransmission = *socket_cli;
+                            Reply(clientTransmission, Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
+                        }
                     }
                 }
         }
@@ -316,7 +319,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         else
         {
             std::cout << "Max connection reach for " << username << std::endl;
-            Reply(incomingAddress, Message::MakeRejectConnCommand(++lastSeqn));
+            // Reply(incomingAddress, Message::MakeRejectConnCommand(++lastSeqn));
         }
 
         if (replicaManager->IsPrimary())
@@ -351,7 +354,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             int ended = sessionManager->EndSession(profile, incomingAddress);
 
             // Broadcast connect notification
-            Broadcast(Message::MakeInfo(++lastSeqn, username + " has disconnected."), profile);
+            // Broadcast(Message::MakeInfo(++lastSeqn, username + " has disconnected."), profile);
 
             std::cout << "Connections ended: " << ended << std::endl;
         }
@@ -382,7 +385,8 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
 
             if (usernameToFollow.compare(username) == 0)
             {
-                Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow yourself"));
+                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "You can't follow
+                // yourself"));
                 return;
             }
 
@@ -390,8 +394,8 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             {
                 if (!profile->AddFollower(username))
                 {
-                    Reply(incomingAddress,
-                          Message::MakeError(++lastSeqn, "You're already following this user"));
+                    // Reply(incomingAddress,
+                    //       Message::MakeError(++lastSeqn, "You're already following this user"));
                 }
                 else
                 {
@@ -408,13 +412,13 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             else
             {
                 std::cerr << "Profile " << usernameToFollow << " not found." << std::endl;
-                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
+                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
             }
         }
         else
         {
             std::cerr << "You're not authenticated" << std::endl;
-            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -446,13 +450,13 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             else
             {
                 std::cerr << host << " is not authenticated." << std::endl;
-                Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+                // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
             }
         }
         else
         {
             std::cerr << host << " is not authenticated." << std::endl;
-            Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
+            // Reply(incomingAddress, Message::MakeError(++lastSeqn, "Not authenticated"));
         }
         break;
     }
@@ -487,7 +491,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 }
 
                 response = ss.str();
-                Reply(incomingAddress, Message::MakeInfo(++lastSeqn, response));
+                // Reply(incomingAddress, Message::MakeInfo(++lastSeqn, response));
             }
         }
 
@@ -521,16 +525,17 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_COORDINATOR:
     {
-        std::vector<Peer> avaliable_peers = ReplicaManager.peers;
+        std::vector<Peer> avaliable_peers = replicaManager->GetPeersList();
         for(auto peer= avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
         {
-            if(peer.address.compare(bindAddress) && (peer.port == bindPort))
+            Peer currentPeer = *peer;
+            if(currentPeer.address.compare(bindAddress) && (currentPeer.port == bindPort))
             {
-                peer.primary = true;
+                currentPeer.primary = true;
             }
             else
             {
-                peer.primary = false;
+                currentPeer.primary = false;
             }
         }
         std::cerr << host << "Answer the election!!!" << std::endl;
@@ -538,7 +543,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_ELECTION:
     {
-        Reply(incomingAddress, Message::MakeReply(++lastSeqn, response));
+        Reply(incomingAddress, Message::MakeReply(++lastSeqn, "election coming"));
         if(electionStarted)
         {
             ElectionAlgorithmProcess();

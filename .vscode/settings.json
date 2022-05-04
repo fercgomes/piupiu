@@ -68,5 +68,6 @@
     "typeindex": "cpp",
     "variant": "cpp",
     "shared_mutex": "cpp"
-  }
+  },
+  "C_Cpp.errorSquiggles": "Disabled"
 }

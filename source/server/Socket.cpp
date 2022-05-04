@@ -67,9 +67,10 @@ int Socket::Send(SocketAddress address, Message::Packet data)
     std::cout << "[SOCKET] Sending to host " << address.address << ":" << address.port << std::endl;
 
     struct sockaddr_in recipient;
-    memset(&recipient, 0, sizeof(recipient));
-    recipient.sin_family      = AF_INET;
-    recipient.sin_port        = htons(address.port);
+    // memset(&recipient, 0, sizeof(struct sockaddr_in));
+    recipient.sin_family = AF_INET;
+    recipient.sin_port   = htons(address.port);
+    // recipient.sin_port        = address.port;
     recipient.sin_addr.s_addr = inet_addr(address.address.c_str());
 
     int r =
@@ -100,7 +101,7 @@ int Socket::Receive(void* buffer, std::size_t bufferSize, SocketAddress& addr)
     {
 
         addr.address = std::string(inet_ntoa(incAddr.sin_addr));
-        addr.port    = incAddr.sin_port;
+        addr.port    = ntohs(incAddr.sin_port);
         // Nao ta pegando a porta certa
         return r;
     }

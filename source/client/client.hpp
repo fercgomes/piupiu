@@ -8,6 +8,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include "confirmation-buffer.hpp"
 #include "console/message.hpp"
 
 #include <Packet.hpp>

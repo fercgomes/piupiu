@@ -15,10 +15,17 @@ SessionManager::~SessionManager()
     }
 }
 
-Session* GetSessions()
+std::vector<Session*> SessionManager::GetSessions()
 {
-    return sessions;
+   std::vector<Session*> clientList; 
+   for (std::map<std::string, Session*>::const_iterator it=sessions.begin(); it!=sessions.end(); ++it)
+   {
+        clientList.push_back( it->second );
+   }
+
+   return clientList;
 }
+
 
 Session* SessionManager::StartSession(Profile* profile, SocketAddress sender)
 {

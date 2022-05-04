@@ -63,6 +63,9 @@ public:
     uint64_t GetLastSeqn() const { return lastSeqn; }
     void     IncrementSeqn() { lastSeqn++; }
 
+    std::string     GetIpAddr();
+    int             GetPort();
+
     /* Inicia o servidor */
     void Start();
 

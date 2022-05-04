@@ -68,4 +68,8 @@ public:
     /** Returns a list of the secondary replicas in the network */
     std::vector<Peer> GetSecondaryReplicas();
     Peer              GetPrimaryReplica();
+    void              DeletePrimaryReplica();
+    void              MakePrimaryReplica();
+
+    std::vector<Peer> GetPeersList();
 };

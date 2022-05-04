@@ -1,8 +1,6 @@
 #include "Packet.hpp"
 #include <iostream>
 
-int_addr_t lastAddrReceive = 0;
-
 namespace Message
 {
 
@@ -64,26 +62,26 @@ Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle)
     return p;
 }
 
-Packet MakeSendCommand(uint64_t lastSeqn, std::string message)
+Packet MakeSendCommand(uint64_t lastSeqn, std::string handle)
 {
     Packet p = {.type      = PACKET_SEND_CMD,
                 .seqn      = lastSeqn + 1,
-                .length    = message.length(),
+                .length    = handle.length(),
                 .timestamp = std::time(nullptr)};
 
-    strcpy(p.payload, message.c_str());
+    strcpy(p.payload, handle.c_str());
 
     return p;
 }
 
-Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string sender)
+Packet MakeNotification(uint64_t lastSeqn, std::string handle, std::string sender)
 {
     Packet p = {.type      = PACKET_NOTIFICATION,
                 .seqn      = lastSeqn + 1,
-                .length    = message.length(),
+                .length    = handle.length(),
                 .timestamp = std::time(nullptr)};
 
-    std::string output = "@" + sender + ":\n" + message;
+    std::string output = "@" + sender + ":\n" + handle;
 
     strcpy(p.payload, output.c_str());
 
@@ -94,7 +92,7 @@ Packet MakeElection(uint64_t lastSeqn)
 {
     Packet p = {.type      = PACKET_NOTIFICATION,
                 .seqn      = lastSeqn + 1,
-                .length    = message.length(),
+                .length    = 0,
                 .timestamp = std::time(nullptr)};
 
 
@@ -116,14 +114,14 @@ Packet MakeError(uint64_t lastSeqn, std::string reason)
     return p;
 }
 
-Packet MakeInfo(uint64_t lastSeqn, std::string message)
+Packet MakeInfo(uint64_t lastSeqn, std::string handle)
 {
     Packet p = {.type      = PACKET_INFO,
                 .seqn      = lastSeqn + 1,
-                .length    = message.length(),
+                .length    = handle.length(),
                 .timestamp = std::time(nullptr)};
 
-    std::string output = message;
+    std::string output = handle;
 
     strcpy(p.payload, output.c_str());
 
@@ -144,6 +142,26 @@ Packet MakeConfirmStateChangeMessage(uint64_t seqnToBeConfirmed)
 {
     Packet p = {.type      = PACKET_CONFIRM_STATE_CHANGE,
                 .seqn      = seqnToBeConfirmed,
+                .length    = 0,
+                .timestamp = std::time(nullptr)};
+
+    return p;
+}
+
+Packet MakeReply(uint64_t lastSeqn, std::string sender)
+{
+    Packet p = {.type      = PACKET_CONFIRM_STATE_CHANGE,
+                .seqn      = lastSeqn,
+                .length    = sender.length(),
+                .timestamp = std::time(nullptr)};
+
+    return p;
+}
+
+Packet Coordinator(uint64_t lastSeqn, std::string ip_addr, int port_number)
+{
+    Packet p = {.type      = PACKET_CONFIRM_STATE_CHANGE,
+                .seqn      = lastSeqn,
                 .length    = 0,
                 .timestamp = std::time(nullptr)};
 

@@ -27,9 +27,22 @@ ReplicaManager::ReplicaManager(std::string address, int port, bool primary, std:
 
                 // BUG: tem que confirmar pro client original
                 // Aqui tá mandando sempre pro primary
-                this->GetServer()->GetSocket()->Send(
-                    container.originalHost,
-                    Message::MakeConfirmStateChangeMessage(container.originalSeqn));
+
+                auto message = container.content[0].item->GetPacket();
+                switch (message.type)
+                {
+                case PACKET_CONNECT_CMD:
+                    this->GetServer()->GetSocket()->Send(
+                        container.originalHost,
+                        Message::MakeAcceptConnCommand(container.originalSeqn));
+                    break;
+
+                    // TODO: Adicionar as outras confirmaçoes
+
+                default:
+                    std::cout << "ops" << std::endl;
+                    break;
+                }
 
                 for (auto& item : container.content)
                 {
@@ -103,6 +116,28 @@ Peer ReplicaManager::GetPrimaryReplica()
     throw std::invalid_argument("No primary peer found");
 }
 
+void ReplicaManager::MakePrimaryReplica()
+{
+    thisPeer.primary = true;
+}
+
+std::vector<Peer> ReplicaManager::GetPeersList()
+{
+    return peers;
+}
+
+void ReplicaManager::DeletePrimaryReplica()
+{
+    for (auto peer : peers)
+    {
+        if (peer.primary) delete &peer;
+    }
+
+    std::cerr << "No primary peer found" << std::endl;
+    throw std::invalid_argument("No primary peer found");
+
+}
+
 int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddress senderAddress)
 {
     auto peers = GetSecondaryReplicas();
@@ -113,8 +148,9 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddres
     // uint64_t lastSeqn = 0;
 
     // Gambiarra!!
-    std::array<BaseMessage*, 3> messages = {
-        new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
+    std::array<BaseMessage*, 3> messages = {new BaseMessage(lastSeqn++, message),
+                                            new BaseMessage(lastSeqn++, message),
+                                            new BaseMessage(lastSeqn++, message)};
 
     for (int i = 0; i < 3; i++)
         server->IncrementSeqn();
