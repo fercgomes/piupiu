@@ -1,10 +1,10 @@
 #pragma once
 
 #include "server.hpp"
-#include <ctime>
 #include <Packet.hpp>
 #include <algorithm>
 #include <arpa/inet.h>
+#include <ctime>
 #include <errno.h>
 #include <iostream>
 #include <sstream>
@@ -15,11 +15,10 @@
 Server::Server(std::string bindAddress, int bindPort, std::string peersList, bool primary)
     : bindAddress(bindAddress), bindPort(bindPort)
 {
-    profileManager = new ProfileManager();
+    replicaManager = new ReplicaManager(bindAddress, bindPort, primary, peersList, this);
+    profileManager = new ProfileManager(this);
     sessionManager = new SessionManager(profileManager);
     lastSeqn       = 0;
-
-    replicaManager = new ReplicaManager(bindAddress, bindPort, primary, peersList, this);
 
     // Inicializar socket
     _socket.Bind(bindAddress, bindPort);
@@ -118,18 +117,18 @@ void Server::PendingNotificationWorker()
 
 void Server::ElectionAlgorithmProcess()
 {
-    //Current time
+    // Current time
     lastElectionTimestamp = std::time(nullptr);
 
-    //Let's pick up all the secondary replicas
+    // Let's pick up all the secondary replicas
     std::vector<Peer> secondary_connections = replicaManager->GetSecondaryReplicas();
 
-    //Fetch peers using port as a parameter
+    // Fetch peers using port as a parameter
     for (auto i = secondary_connections.begin(); i != secondary_connections.end(); i++)
     {
-        if(this->bindPort > i->port)
+        if (this->bindPort > i->port)
         {
-            //TODO make new SocketAddress
+            // TODO make new SocketAddress
             SocketAddress peerAddr = SocketAddress(this->bindAddress, this->bindPort);
             Reply(peerAddr, Message::MakeElection(++lastSeqn));
         }
@@ -140,82 +139,76 @@ void Server::HeartbeatNotificationWorker()
 {
     while (true)
     {
-        if (replicaManager->IsPrimary()) {
-                sleep(4);
-                replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage());
-            }
-            else 
+        if (replicaManager->IsPrimary())
+        {
+            sleep(4);
+            replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage());
+        }
+        else
+        {
+            sleep(4);
+            if (std::time(nullptr) - lastHeartbeatTimestamp > 9)
             {
-                sleep(4);
-                if (std::time(nullptr) - lastHeartbeatTimestamp > 9) {
-                    std::cout << "A new election algorithm should start here" << std::endl;
-                    ElectionAlgorithmProcess();
-
-                }
-                else
-                {
-                    std::cout << "Nothing to do here" << std::endl;
-                }
-            } 
+                std::cout << "A new election algorithm should start here" << std::endl;
+                ElectionAlgorithmProcess();
+            }
+            else
+            {
+                std::cout << "Nothing to do here" << std::endl;
+            }
+        }
     }
-    
 }
 
+std::string Server::GetIpAddr() { return bindAddress; }
 
-std::string Server::GetIpAddr()
-{
-    return bindAddress;
-}
-
-int Server::GetPort()
-{
-    return bindPort;
-}    
+int Server::GetPort() { return bindPort; }
 
 void Server::ElectionTimeoutWorker()
 {
     while (true)
     {
-        if (!(replicaManager->IsPrimary())) {
-                sleep(1);
-                if(std::time(nullptr) - lastElectionTimestamp > 3)
+        if (!(replicaManager->IsPrimary()))
+        {
+            sleep(1);
+            if (std::time(nullptr) - lastElectionTimestamp > 3)
+            {
+                std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
+
+                for (auto peer = peers.begin(); peer != peers.end(); peer++)
                 {
-                    std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
+                    SocketAddress peerAddr = peer->GetSocketAddress();
+                    Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
+                }
+                // Deletar o atual primary
+                replicaManager->DeletePrimaryReplica();
 
-                    for(auto peer = peers.begin(); peer != peers.end(); peer++)
+                // Como as funï¿½ï¿½es de session manager pegam o IP e Porta usando
+                // a funï¿½ï¿½o GetPrimaryReplica, o que precisamos fazer entao
+                //ï¿½ transformar a secundaria eleita em primaria
+                replicaManager->MakePrimaryReplica();
+
+                // Retransmitir o endereï¿½o e porta para os clients conectados
+                std::vector<Session*> clients_connected = sessionManager->GetSessions();
+
+                for (auto client = clients_connected.begin(); client != clients_connected.end();
+                     client++)
+                {
+                    // Transmite o endereï¿½o do novo primario aos clients
+                    // SocketAddress clientAddr = SocketAddress(client.bindAddress, client.bindPort);
+                    std::vector<SocketAddress> client_sockets = (*client)->sockets;
+                    for (auto socket_cli = client_sockets.begin();
+                         socket_cli != client_sockets.end(); socket_cli++)
                     {
-                        SocketAddress peerAddr = peer->GetSocketAddress();
-                        Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
-                    }
-                    //Deletar o atual primary
-                    replicaManager->DeletePrimaryReplica();
-
-                    
-
-                    //Como as funções de session manager pegam o IP e Porta usando
-                    //a função GetPrimaryReplica, o que precisamos fazer entao 
-                    //é transformar a secundaria eleita em primaria
-                    replicaManager->MakePrimaryReplica();
-
-                    //Retransmitir o endereço e porta para os clients conectados
-                    std::vector<Session*> clients_connected = sessionManager->GetSessions();
-
-                    for(auto client = clients_connected.begin(); client != clients_connected.end(); client++)
-                    {
-                        //Transmite o endereço do novo primario aos clients
-                        //SocketAddress clientAddr = SocketAddress(client.bindAddress, client.bindPort);
-                        std::vector<SocketAddress> client_sockets = (*client)->sockets;
-                        for(auto socket_cli = client_sockets.begin(); socket_cli != client_sockets.end(); socket_cli++)
-                        {
-                            SocketAddress clientTransmission = *socket_cli;
-                            Reply(clientTransmission, Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
-                        }
+                        SocketAddress clientTransmission = *socket_cli;
+                        Reply(clientTransmission,
+                              Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
                     }
                 }
+            }
         }
     }
 }
-
 
 void Server::Start()
 {
@@ -233,7 +226,6 @@ void Server::Start()
     // Spawn election worker thread
     this->electionTimeoutWorkerThread =
         std::make_unique<std::thread>(&Server::ElectionTimeoutWorker, this);
-
 
     while (1)
         ;
@@ -361,11 +353,12 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         else
         {
             std::cout << "No profile found to disconnect" << std::endl;
-            if (replicaManager->IsPrimary()) {
+            if (replicaManager->IsPrimary())
+            {
                 replicaManager->BroadcastToSecondaries(message, incomingAddress);
                 Reply(incomingAddress, Message::MakeError(++lastSeqn, "Profile not found"));
             }
-            else 
+            else
             {
                 std::cout << "[disconnect] secondary" << std::endl;
                 replicaManager->ConfirmMessage(message.seqn);
@@ -399,12 +392,15 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                 }
                 else
                 {
-                    if (replicaManager->IsPrimary()) {
-                        Reply(incomingAddress,
-                            Message::MakeInfo(++lastSeqn, "You're following " + usernameToFollow));
+                    if (replicaManager->IsPrimary())
+                    {
+                        Reply(incomingAddress, Message::MakeInfo(++lastSeqn, "You're following " +
+                                                                                 usernameToFollow));
                     }
-                    else {
-                        std::cout << "[follow] secondary - You're following" + usernameToFollow << std::endl;
+                    else
+                    {
+                        std::cout << "[follow] secondary - You're following" + usernameToFollow
+                                  << std::endl;
                         replicaManager->ConfirmMessage(message.seqn);
                     }
                 }
@@ -505,7 +501,8 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_HEARTBEAT:
     {
-        if (replicaManager->IsPrimary()) {
+        if (replicaManager->IsPrimary())
+        {
             std::cerr << "I'm primary. Why am I receibing heartbeat message?" << std::endl;
             break;
         }
@@ -519,20 +516,18 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     case PACKET_ANSWER:
     {
         electionStarted = false;
-        //If a reply was received
+        // If a reply was received
         std::cerr << host << "Answer the election!!!" << std::endl;
         break;
     }
     case PACKET_COORDINATOR:
     {
         std::vector<Peer> avaliable_peers = replicaManager->GetPeersList();
-        for(auto peer= avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
+        for (auto peer = avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
         {
             Peer currentPeer = *peer;
-            if(currentPeer.address.compare(bindAddress) && (currentPeer.port == bindPort))
-            {
-                currentPeer.primary = true;
-            }
+            if (currentPeer.address.compare(bindAddress) && (currentPeer.port == bindPort))
+            { currentPeer.primary = true; }
             else
             {
                 currentPeer.primary = false;
@@ -544,10 +539,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     case PACKET_ELECTION:
     {
         Reply(incomingAddress, Message::MakeReply(++lastSeqn, "election coming"));
-        if(electionStarted)
-        {
-            ElectionAlgorithmProcess();
-        }
+        if (electionStarted) { ElectionAlgorithmProcess(); }
         break;
     }
     default:

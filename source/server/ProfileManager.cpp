@@ -6,7 +6,7 @@
 #include <mutex>
 #include <sstream>
 #include "Session.hpp"
-
+#include "server.hpp"
 
 struct profileHasName
 {
@@ -19,6 +19,19 @@ struct profileHasName
         return (profile->GetHandle().compare(username) == 0);
     }
 };
+
+std::string ProfileManager::GetProfilesPath()
+{
+    std::stringstream ss;
+    std::cout << server << std::endl;
+    auto        replicaManager = server->GetReplicaManager();
+    std::string primary        = replicaManager->IsPrimary() ? "primary" : "secondary";
+    std::string bindIp         = server->GetIpAddr();
+    int         bindPort       = server->GetPort();
+    ss << "profiles_" << bindIp << ":" << bindPort << "_" << primary;
+    std::string output = ss.str();
+    return output;
+}
 
 std::vector<std::string> split(const std::string& s, char delimiter)
 {
@@ -36,7 +49,8 @@ int ProfileManager::ReadProfilesFromFile()
 {
     std::fstream                    profilesFile;
     std::map<std::string, Profile*> profilesMap;
-    std::string filename = "profiles";
+    std::string                     filename = GetProfilesPath();
+    std::cout << "Opening " << filename << std::endl;
     profilesFile.open(filename.append(std::getenv("BIND_PORT")).append(".dat"), std::ios::in);
 
     if (profilesFile)
@@ -83,6 +97,8 @@ int ProfileManager::ReadProfilesFromFile()
 
 ProfileManager::ProfileManager() { int r = ReadProfilesFromFile(); }
 
+ProfileManager::ProfileManager(Server* server) : server(server) { ReadProfilesFromFile(); }
+
 Profile* ProfileManager::NewProfile(std::string handle, Session* session)
 {
     Profile* p = new Profile(handle, this, session);
@@ -111,7 +127,7 @@ void ProfileManager::Sync()
 {
     std::cout << "Syncing profiles to disk" << std::endl;
     std::fstream profilesFile;
-    std::string filename = "profiles";
+    std::string  filename = GetProfilesPath();
     profilesFile.open(filename.append(std::getenv("BIND_PORT")).append(".dat"), std::ios::out);
     if (profilesFile)
     {

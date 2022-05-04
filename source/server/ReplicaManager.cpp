@@ -116,15 +116,9 @@ Peer ReplicaManager::GetPrimaryReplica()
     throw std::invalid_argument("No primary peer found");
 }
 
-void ReplicaManager::MakePrimaryReplica()
-{
-    thisPeer.primary = true;
-}
+void ReplicaManager::MakePrimaryReplica() { thisPeer.primary = true; }
 
-std::vector<Peer> ReplicaManager::GetPeersList()
-{
-    return peers;
-}
+std::vector<Peer> ReplicaManager::GetPeersList() { return peers; }
 
 void ReplicaManager::DeletePrimaryReplica()
 {
@@ -133,6 +127,7 @@ void ReplicaManager::DeletePrimaryReplica()
         if (it->primary)
         {
             peers.erase(it);
+            return;
         }
     }
 }
@@ -190,13 +185,12 @@ int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message)
     std::array<BaseMessage*, 3> messages = {
         new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++), new BaseMessage(lastSeqn++)};
 
-
     // Se nao tiver 3 peers, vai dar ruim
     for (int i = 0; i < peers.size(); i++)
     {
         auto peer = peers[i];
-        std::cout << "Broadcasting heartbeat" << " to " << peer.address
-                  << ":" << peer.port << std::endl;
+        std::cout << "Broadcasting heartbeat"
+                  << " to " << peer.address << ":" << peer.port << std::endl;
         SocketAddress addr;
         addr.address = peer.address;
         addr.port    = peer.port;
