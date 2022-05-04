@@ -63,6 +63,10 @@ Para a comunicação entre o _client_ e o _server_, foi implementado uma estrutu
 8. Mensagem de erro (`PACKET_ERROR`)
 9. Mensagem de informação (`PACKET_INFO`)
 10. Requisitar informação do usuário (`PACKET_REQUEST_USER_INFO`)
+11. Verificar se o servidor primário está respondendo (`PACKET_HEARTBEAT`)
+12. Requisitar a eleição de um novo servidor primário (`PACKET_ELECTION`)
+13. Responder a eleição de lider (`PACKET_REPLY`)
+14. Comunicar a todos os processos o novo lider (`PACKET_COORDINATOR`)
 
 A estrutura do pacote também tem número de sequência, um _payload_ e o seu tamanho, e o _timestamp_.
 
