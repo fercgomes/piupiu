@@ -35,7 +35,7 @@ private:
     std::unique_ptr<std::thread>    listeningThread                 = nullptr;
     std::unique_ptr<std::thread>    pendingNotificationWorkerThread = nullptr;
     std::unique_ptr<std::thread>    heartBeatWorkerThread           = nullptr;
-    std::unique_ptr<std::thread>    electionTimeoutWorkerThread           = nullptr;
+    std::unique_ptr<std::thread>    electionTimeoutWorkerThread     = nullptr;
     std::vector<std::thread>        messageHandlerThreads;
     std::queue<PendingNotification> notificationQueue;
 
@@ -59,12 +59,13 @@ private:
 public:
     Server(std::string bindAddress, int bindPort, std::string peersList, bool primary);
 
-    Socket*  GetSocket();
-    uint64_t GetLastSeqn() const { return lastSeqn; }
-    void     IncrementSeqn() { lastSeqn++; }
+    Socket*         GetSocket();
+    uint64_t        GetLastSeqn() const { return lastSeqn; }
+    void            IncrementSeqn() { lastSeqn++; }
+    ReplicaManager* GetReplicaManager() const { return replicaManager; }
 
-    std::string     GetIpAddr();
-    int             GetPort();
+    std::string GetIpAddr();
+    int         GetPort();
 
     /* Inicia o servidor */
     void Start();

@@ -37,11 +37,18 @@ void Client::Listen()
     servAddr.sin_port        = htons(this->serverPort);
     servAddr.sin_addr.s_addr = inet_addr(this->serverAddress.c_str());
 
+    struct sockaddr_in incAddr;
+    socklen_t          incAddrlen;
+
+    memset(&incAddr, 0, sizeof(incAddr));
+    // memset(&incAddrlen, 0, sizeof(socklen_t));
+    incAddrlen = sizeof(struct sockaddr_in);
+
     while (isListening)
     {
         int n, len;
 
-        n = recvfrom(this->socketDescr, &p, sizeof(p), MSG_WAITALL, NULL, NULL);
+        n = recvfrom(this->socketDescr, &p, sizeof(p), MSG_WAITALL, (struct sockaddr*)&incAddr, &incAddrlen);
         std::cout << "aqui" << std::endl;
 
         if (n > 0)
@@ -81,6 +88,18 @@ void Client::Listen()
                     messageHandler(payload, Info);
                 }
                 break;
+            case PACKET_COORDINATOR: 
+            {
+                // std::cout << "[SERVER] " << p.payload << std::endl;            
+                    
+                std::string address = std::string(inet_ntoa(incAddr.sin_addr));
+                int port    = ntohs(incAddr.sin_port);
+                SetServerAddress(address);
+                SetServerPort(port);
+                std::cout << "I have a new coordinator. Updating " << p.payload << std::endl;
+
+                break;
+            }
             default:
                 std::cerr << "Client should not receive this message" << std::endl;
                 Shutdown();
