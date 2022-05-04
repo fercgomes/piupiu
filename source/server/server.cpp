@@ -117,7 +117,8 @@ void Server::PendingNotificationWorker()
 
 void Server::ElectionAlgorithmProcess()
 {
-    // Current time
+    electionStarted = true;
+    //Current time
     lastElectionTimestamp = std::time(nullptr);
 
     // Let's pick up all the secondary replicas
@@ -126,7 +127,7 @@ void Server::ElectionAlgorithmProcess()
     // Fetch peers using port as a parameter
     for (auto i = secondary_connections.begin(); i != secondary_connections.end(); i++)
     {
-        if (this->bindPort > i->port)
+        if(this->bindPort < i->port)
         {
             // TODO make new SocketAddress
             SocketAddress peerAddr = SocketAddress(this->bindAddress, this->bindPort);
@@ -147,15 +148,15 @@ void Server::HeartbeatNotificationWorker()
         else
         {
             sleep(4);
-            if (std::time(nullptr) - lastHeartbeatTimestamp > 9)
+            if (std::time(nullptr) - lastHeartbeatTimestamp > 9 && electionStarted == false)
             {
-                std::cout << "A new election algorithm should start here" << std::endl;
+                std::cout << "Timeout from heartbeats. Starting election" << std::endl;
                 ElectionAlgorithmProcess();
             }
             else
             {
                 std::cout << "Nothing to do here" << std::endl;
-            }
+            } 
         }
     }
 }
@@ -168,12 +169,23 @@ void Server::ElectionTimeoutWorker()
 {
     while (true)
     {
-        if (!(replicaManager->IsPrimary()))
-        {
-            sleep(1);
-            if (std::time(nullptr) - lastElectionTimestamp > 3)
-            {
-                std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
+        if (!(replicaManager->IsPrimary())) {
+                sleep(1);
+                if(std::time(nullptr) - lastElectionTimestamp > 5 && electionStarted == true) 
+                {
+                    std::cout << "I got no response of my election." << std::endl;
+                    std::cout << "Starting bully. I'm the new coordinator" << std::endl;
+                    std::cout << lastElectionTimestamp << std::endl;
+                    std::cout << std::time(nullptr) << std::endl;
+                    std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
+
+                    for(auto peer = peers.begin(); peer != peers.end(); peer++)
+                    {
+                        SocketAddress peerAddr = peer->GetSocketAddress();
+                        Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
+                    }
+                    //Deletar o atual primary
+                    replicaManager->DeletePrimaryReplica();
 
                 for (auto peer = peers.begin(); peer != peers.end(); peer++)
                 {
@@ -183,13 +195,16 @@ void Server::ElectionTimeoutWorker()
                 // Deletar o atual primary
                 replicaManager->DeletePrimaryReplica();
 
-                // Como as fun��es de session manager pegam o IP e Porta usando
-                // a fun��o GetPrimaryReplica, o que precisamos fazer entao
-                //� transformar a secundaria eleita em primaria
-                replicaManager->MakePrimaryReplica();
+                    //Como as fun��es de session manager pegam o IP e Porta usando
+                    //a fun��o GetPrimaryReplica, o que precisamos fazer entao 
+                    //� transformar a secundaria eleita em primaria
+                    std::cout << "Making myself as primary replica" << std::endl;
+                    replicaManager->MakePrimaryReplica();
 
-                // Retransmitir o endere�o e porta para os clients conectados
-                std::vector<Session*> clients_connected = sessionManager->GetSessions();
+
+
+                    //Retransmitir o endere�o e porta para os clients conectados
+                    std::vector<Session*> clients_connected = sessionManager->GetSessions();
 
                 for (auto client = clients_connected.begin(); client != clients_connected.end();
                      client++)
@@ -200,9 +215,14 @@ void Server::ElectionTimeoutWorker()
                     for (auto socket_cli = client_sockets.begin();
                          socket_cli != client_sockets.end(); socket_cli++)
                     {
-                        SocketAddress clientTransmission = *socket_cli;
-                        Reply(clientTransmission,
-                              Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
+                        //Transmite o endere�o do novo primario aos clients
+                        //SocketAddress clientAddr = SocketAddress(client.bindAddress, client.bindPort);
+                        std::vector<SocketAddress> client_sockets = (*client)->sockets;
+                        for(auto socket_cli = client_sockets.begin(); socket_cli != client_sockets.end(); socket_cli++)
+                        {
+                            SocketAddress clientTransmission = *socket_cli;
+                            Reply(clientTransmission, Message::Coordinator(++lastSeqn, this->GetIpAddr(), this->GetPort()));
+                        }
                     }
                 }
             }
@@ -510,14 +530,16 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         {
             std::cout << "Primary sent me a heartbeat. I will still be secondary" << std::endl;
             lastHeartbeatTimestamp = std::time(nullptr);
+            lastElectionTimestamp = std::time(nullptr);
+
         }
         break;
     }
-    case PACKET_ANSWER:
+    case PACKET_REPLY:
     {
         electionStarted = false;
-        // If a reply was received
-        std::cerr << host << "Answer the election!!!" << std::endl;
+        //If a reply was received
+        std::cerr << host << "I got an answer from an election process. Aborting my own election!!!" << std::endl;
         break;
     }
     case PACKET_COORDINATOR:
@@ -526,20 +548,26 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
         for (auto peer = avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
         {
             Peer currentPeer = *peer;
-            if (currentPeer.address.compare(bindAddress) && (currentPeer.port == bindPort))
-            { currentPeer.primary = true; }
+            if( (!currentPeer.address.compare(incomingAddress.address)) && (currentPeer.port == incomingAddress.port))
+            {
+                currentPeer.primary = true;
+                std::cerr << host << "Updating new coordinator!!!" << std::endl;          
+            }
             else
             {
                 currentPeer.primary = false;
             }
         }
-        std::cerr << host << "Answer the election!!!" << std::endl;
+        std::cerr << host << "There is a new cordinator in the house!!!" << std::endl;
         break;
     }
     case PACKET_ELECTION:
     {
-        Reply(incomingAddress, Message::MakeReply(++lastSeqn, "election coming"));
-        if (electionStarted) { ElectionAlgorithmProcess(); }
+        Reply(incomingAddress, Message::MakeReply(++lastSeqn, "There is an election going on. Starting my own election"));
+        if(!electionStarted)
+        {
+            ElectionAlgorithmProcess();
+        }
         break;
     }
     default:

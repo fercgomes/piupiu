@@ -1,5 +1,6 @@
 #include "Packet.hpp"
 #include <iostream>
+#include <sstream>
 
 namespace Message
 {
@@ -90,7 +91,7 @@ Packet MakeNotification(uint64_t lastSeqn, std::string handle, std::string sende
 
 Packet MakeElection(uint64_t lastSeqn)
 {
-    Packet p = {.type      = PACKET_NOTIFICATION,
+    Packet p = {.type      = PACKET_ELECTION,
                 .seqn      = lastSeqn + 1,
                 .length    = 0,
                 .timestamp = std::time(nullptr)};
@@ -150,7 +151,7 @@ Packet MakeConfirmStateChangeMessage(uint64_t seqnToBeConfirmed)
 
 Packet MakeReply(uint64_t lastSeqn, std::string sender)
 {
-    Packet p = {.type      = PACKET_CONFIRM_STATE_CHANGE,
+    Packet p = {.type      = PACKET_REPLY,
                 .seqn      = lastSeqn,
                 .length    = sender.length(),
                 .timestamp = std::time(nullptr)};
@@ -160,10 +161,14 @@ Packet MakeReply(uint64_t lastSeqn, std::string sender)
 
 Packet Coordinator(uint64_t lastSeqn, std::string ip_addr, int port_number)
 {
-    Packet p = {.type      = PACKET_CONFIRM_STATE_CHANGE,
+    Packet p = {.type      = PACKET_COORDINATOR,
                 .seqn      = lastSeqn,
                 .length    = 0,
                 .timestamp = std::time(nullptr)};
+    std::stringstream ss;
+    ss << ip_addr << ":" << port_number;
+    std::string output = ss.str();
+    strcpy(p.payload, output.c_str());
 
     return p;
 }
@@ -214,9 +219,9 @@ const char* TypeToStr(uint16_t type)
     {
         return "PACKET_ELECTION";
     }
-    case PACKET_ANSWER:
+    case PACKET_REPLY:
     {
-        return "PACKET_ANSWER";
+        return "PACKET_REPLY";
     }
     case PACKET_COORDINATOR:
     {

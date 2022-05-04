@@ -22,7 +22,7 @@
 
 #define PACKET_ELECTION 12
 
-#define PACKET_ANSWER 13
+#define PACKET_REPLY 13
 
 #define PACKET_COORDINATOR 14
 

@@ -27,8 +27,9 @@ private:
 
     Socket _socket;
 
-    bool        electionStarted = false;
-    std::time_t lastElectionTimestamp;
+    bool                            electionStarted                 = false;
+    std::time_t                     lastElectionTimestamp = std::time(nullptr);
+
 
     bool                            isListening                     = true;
     std::unique_ptr<std::thread>    listeningThread                 = nullptr;
@@ -43,7 +44,7 @@ private:
     ProfileManager* profileManager;
     SessionManager* sessionManager;
     ReplicaManager* replicaManager;
-    std::time_t     lastHeartbeatTimestamp;
+    std::time_t     lastHeartbeatTimestamp = std::time(nullptr);
 
     void Listen();
     void PendingNotificationWorker();

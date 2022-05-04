@@ -28,7 +28,7 @@ std::string ProfileManager::GetProfilesPath()
     std::string primary        = replicaManager->IsPrimary() ? "primary" : "secondary";
     std::string bindIp         = server->GetIpAddr();
     int         bindPort       = server->GetPort();
-    ss << "profiles_" << bindIp << ":" << bindPort << "_" << primary;
+    ss << "profiles_" << bindIp << ":" << bindPort;
     std::string output = ss.str();
     return output;
 }
@@ -51,7 +51,7 @@ int ProfileManager::ReadProfilesFromFile()
     std::map<std::string, Profile*> profilesMap;
     std::string                     filename = GetProfilesPath();
     std::cout << "Opening " << filename << std::endl;
-    profilesFile.open(filename.append(std::getenv("BIND_PORT")).append(".dat"), std::ios::in);
+    profilesFile.open(filename, std::ios::in);
 
     if (profilesFile)
     {
@@ -128,7 +128,7 @@ void ProfileManager::Sync()
     std::cout << "Syncing profiles to disk" << std::endl;
     std::fstream profilesFile;
     std::string  filename = GetProfilesPath();
-    profilesFile.open(filename.append(std::getenv("BIND_PORT")).append(".dat"), std::ios::out);
+    profilesFile.open(filename, std::ios::out);
     if (profilesFile)
     {
         // write user names
