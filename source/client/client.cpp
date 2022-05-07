@@ -188,7 +188,7 @@ int Client::Post(std::string message)
 {
     if (message.length() <= 128)
     {
-        this->SendMessageToServer(Message::MakeSendCommand(++lastSentSeqn, message));
+        this->SendMessageToServer(Message::MakeSendCommand(++lastSentSeqn, message, serverAddress, serverPort));
         return 0;
     }
     else

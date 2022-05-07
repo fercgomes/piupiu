@@ -45,7 +45,9 @@ typedef struct
     uint64_t timestamp;
     // Flag de destino: Primario | Secundario
     char payload[PACKET_MAX_PAYLOAD_LEN];
-    char proxy[512];
+    //char proxy[512];
+    char senderIp[64];
+    int senderPort;
 } Packet;
 
 Packet MakeConnectCommand(uint64_t lastSeqn, std::string handle);
@@ -53,7 +55,7 @@ Packet MakeDisconnectCommand(uint64_t lastSeqn, std::string handle);
 Packet MakeAcceptConnCommand(uint64_t lastSeqn);
 Packet MakeRejectConnCommand(uint64_t lastSeqn);
 Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle, std::string sender);
-Packet MakeSendCommand(uint64_t lastSeqn, std::string message);
+Packet MakeSendCommand(uint64_t lastSeqn, std::string message, std::string senderIp, int senderPort);
 Packet MakeNotification(uint64_t lastSeqn, std::string message, std::string sender);
 Packet MakeError(uint64_t lastSeqn, std::string reason);
 Packet MakeInfo(uint64_t lastSeqn, std::string message);

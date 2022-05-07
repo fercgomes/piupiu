@@ -66,13 +66,16 @@ Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle, std::string send
     return p;
 }
 
-Packet MakeSendCommand(uint64_t lastSeqn, std::string handle)
+Packet MakeSendCommand(uint64_t lastSeqn, std::string handle, std::string senderIp, int senderPort)
 {
+
     Packet p = {.type      = PACKET_SEND_CMD,
                 .seqn      = lastSeqn + 1,
                 .length    = handle.length(),
-                .timestamp = std::time(nullptr)};
+                .timestamp = std::time(nullptr),
+                .senderPort = senderPort};
 
+    strcpy(p.senderIp, senderIp.c_str());
     strcpy(p.payload, handle.c_str());
 
     return p;
