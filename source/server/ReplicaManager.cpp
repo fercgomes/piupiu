@@ -222,7 +222,7 @@ int ReplicaManager::BroadcastToSecondaries(Message::Packet message, SocketAddres
     }
 }
 
-int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message)
+int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message, int currentPort)
 {
     auto peers = GetSecondaryReplicas();
 
@@ -239,8 +239,8 @@ int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message)
     for (int i = 0; i < peers.size(); i++)
     {
         auto peer = peers[i];
-        std::cout << "Broadcasting heartbeat"
-                  << " to " << peer.address << ":" << peer.port << std::endl;
+        // std::cout << "Broadcasting heartbeat"
+        //           << " to " << peer.address << ":" << peer.port << std::endl;
         SocketAddress addr;
         addr.address = peer.address;
         addr.port    = peer.port;
@@ -249,7 +249,9 @@ int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message)
         Message::Packet newMsg = message;
         message.seqn           = lastSeqnTemp + i;
 
-        server->GetSocket()->Send(addr, message);
+        if (addr.port < currentPort) {
+            server->GetSocket()->Send(addr, message);
+        }
     }
 }
 

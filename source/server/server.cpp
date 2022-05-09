@@ -144,7 +144,9 @@ void Server::ElectionAlgorithmProcess()
     // Fetch peers using port as a parameter
     for (auto i = secondary_connections.begin(); i != secondary_connections.end(); i++)
     {
-        if (this->bindPort < i->port)
+        std::cout << i->port << std::endl;
+        std::cout << this->GetPort() << std::endl;
+        if (this->bindPort < i->port && i->port != this->GetPort())
         {
             // TODO make new SocketAddress
             SocketAddress peerAddr = SocketAddress(this->bindAddress, this->bindPort);
@@ -161,7 +163,7 @@ void Server::HeartbeatNotificationWorker()
         {
             // sleep(4);
             std::this_thread::sleep_for(std::chrono::seconds(4));
-            replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage());
+            replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage(), this->GetPort());
         }
         else
         {
@@ -170,11 +172,8 @@ void Server::HeartbeatNotificationWorker()
             if (std::time(nullptr) - lastHeartbeatTimestamp > 9 && electionStarted == false)
             {
                 std::cout << "Timeout from heartbeats. Starting election" << std::endl;
-                ElectionAlgorithmProcess();
-            }
-            else
-            {
-                std::cout << "Nothing to do here" << std::endl;
+                this->replicaManager->DeletePrimaryReplica();
+                this->ElectionAlgorithmProcess();
             }
         }
     }
@@ -188,7 +187,7 @@ void Server::ElectionTimeoutWorker()
 {
     while (true)
     {
-        if (!(replicaManager->IsPrimary()))
+        if (!(replicaManager->IsPrimary() && electionStarted == true))
         {
             // sleep(1);
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -199,14 +198,6 @@ void Server::ElectionTimeoutWorker()
                 std::cout << lastElectionTimestamp << std::endl;
                 std::cout << std::time(nullptr) << std::endl;
                 std::vector<Peer> peers = replicaManager->GetSecondaryReplicas();
-
-                for (auto peer = peers.begin(); peer != peers.end(); peer++)
-                {
-                    SocketAddress peerAddr = peer->GetSocketAddress();
-                    Reply(peerAddr, Message::Coordinator(++lastSeqn, bindAddress, bindPort));
-                }
-                // Deletar o atual primary
-                replicaManager->DeletePrimaryReplica();
 
                 for (auto peer = peers.begin(); peer != peers.end(); peer++)
                 {
@@ -293,6 +284,12 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
               << ") type=" << Message::TypeToStr(message.type) << std::endl;
     // printf("type=%u\nseqn=%u\ntimestamp=%u\nlen=%u\npayload=%s\n", message.type, message.seqn,
     // message.timestamp, message.length, message.payload);
+
+    if (replicaManager->IsPrimary()) {
+        lastHeartbeatTimestamp = std::time(nullptr);
+        lastElectionTimestamp  = std::time(nullptr);
+        electionStarted = false;
+    }
 
     switch (message.type)
     {
@@ -384,7 +381,6 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             newMsg.proxy      = true;
 
             replicaManager->BroadcastToSecondaries(newMsg, incomingAddress);
-            std::cout << "debug dos guris funcionando" << std::endl;
         }
         else
         {
@@ -595,37 +591,44 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_REPLY:
     {
-        electionStarted = false;
-        // If a reply was received
-        std::cerr << host << "I got an answer from an election process. Aborting my own election!!!"
-                  << std::endl;
+        if(incomingAddress.port != this->GetPort()) {
+
+            electionStarted = false;
+            lastElectionTimestamp  = std::time(nullptr);
+            // If a reply was received
+            // std::cerr << "I got an answer from an election process. Aborting my own election!!!"
+            //           << std::endl;
+        }
         break;
     }
     case PACKET_COORDINATOR:
     {
-        std::vector<Peer> avaliable_peers = replicaManager->GetPeersList();
+        electionStarted = false;
+        std::vector<Peer> avaliable_peers = this->replicaManager->GetPeersList();
+
+        std::cerr << host << "TSIZEEEEEE!!!" << std::endl;
+        std::cerr << host << this->replicaManager->GetPeersList().size() << std::endl;
+        this->replicaManager->DeletePrimaryReplica();
+        std::cerr << host << this->replicaManager->GetPeersList().size() << std::endl;
+        // make new primary
         for (auto peer = avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
         {
             Peer currentPeer = *peer;
-            if ((!currentPeer.address.compare(incomingAddress.address)) &&
-                (currentPeer.port == incomingAddress.port))
+            if (currentPeer.port == incomingAddress.port)
             {
                 currentPeer.primary = true;
                 std::cerr << host << "Updating new coordinator!!!" << std::endl;
             }
-            else
-            {
-                currentPeer.primary = false;
-            }
         }
-        std::cerr << host << "There is a new cordinator in the house!!!" << std::endl;
+        // std::cerr << host << "There is a new cordinator in the house!!!" << std::endl;
+        electionStarted = false;
         break;
     }
     case PACKET_ELECTION:
     {
         Reply(incomingAddress,
-              Message::MakeReply(++lastSeqn,
-                                 "There is an election going on. Starting my own election"));
+            Message::MakeReply(++lastSeqn,
+                                "There is an election going on. Starting my own election"));
         if (!electionStarted) { ElectionAlgorithmProcess(); }
         break;
     }
