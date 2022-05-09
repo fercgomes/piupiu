@@ -31,7 +31,7 @@ void DrawFrame()
 
 void ConsoleInterface::IncomingMessageHandler(std::string message, enum MessageType type)
 {
-    auto timestamp = std::chrono::system_clock::now();
+    // auto timestamp = std::chrono::system_clock::now();
 
     switch (type)
     {
@@ -44,6 +44,8 @@ void ConsoleInterface::IncomingMessageHandler(std::string message, enum MessageT
     case Error:
         messages.push_back(MakeErrorMessage(message, std::time(NULL)));
         break;
+    default:
+        std::cout << "deu merda" << std::endl;
     }
 }
 

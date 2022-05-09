@@ -113,10 +113,13 @@ void Server::PendingNotificationWorker()
             Session* session   = recipient->GetSession();
             if (session && session->sockets.size() > 0)
             {
-                std::cout << "Enviando notificação" << std::endl;
+                std::cout << "Enviando notificação " << std::endl;
                 for (auto socket : session->sockets)
                 {
-                    Reply(socket, Message::MakeNotification(++lastSeqn, notification.body,
+                    auto seqn = ++lastSeqn;
+                    std::cout << "Notification with seqn=" << seqn << " to " << socket.address
+                              << ":" << socket.port << std::endl;
+                    Reply(socket, Message::MakeNotification(seqn, notification.body,
                                                             notification.senderUsername));
                 }
             }
@@ -156,12 +159,14 @@ void Server::HeartbeatNotificationWorker()
     {
         if (replicaManager->IsPrimary())
         {
-            sleep(4);
+            // sleep(4);
+            std::this_thread::sleep_for(std::chrono::seconds(4));
             replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage());
         }
         else
         {
-            sleep(4);
+            // sleep(4);
+            std::this_thread::sleep_for(std::chrono::seconds(4));
             if (std::time(nullptr) - lastHeartbeatTimestamp > 9 && electionStarted == false)
             {
                 std::cout << "Timeout from heartbeats. Starting election" << std::endl;
@@ -185,7 +190,8 @@ void Server::ElectionTimeoutWorker()
     {
         if (!(replicaManager->IsPrimary()))
         {
-            sleep(1);
+            // sleep(1);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             if (std::time(nullptr) - lastElectionTimestamp > 5 && electionStarted == true)
             {
                 std::cout << "I got no response of my election." << std::endl;
@@ -309,7 +315,18 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
             profile = profileManager->NewProfile(username);
         }
 
-        auto session = sessionManager->StartSession(profile, incomingAddress);
+        Session* session = nullptr;
+
+        if (message.proxy)
+        {
+            SocketAddress proxy;
+            proxy.address = std::string(message.senderIp);
+            proxy.port    = message.senderPort;
+
+            session = sessionManager->StartSession(profile, proxy);
+        }
+        else
+            session = sessionManager->StartSession(profile, incomingAddress);
 
         if (session)
         {
@@ -360,7 +377,13 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
 
             // broadcast state change to secondaries
             // Reply(incomingAddress, Message::MakeAcceptConnCommand(++lastSeqn));
-            replicaManager->BroadcastToSecondaries(message, incomingAddress);
+            Message::Packet newMsg = message;
+            memset(newMsg.senderIp, 0, sizeof(newMsg.senderIp));
+            strcpy(newMsg.senderIp, incomingAddress.address.c_str());
+            newMsg.senderPort = incomingAddress.port;
+            newMsg.proxy      = true;
+
+            replicaManager->BroadcastToSecondaries(newMsg, incomingAddress);
             std::cout << "debug dos guris funcionando" << std::endl;
         }
         else
@@ -480,9 +503,12 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
                       << std::endl;
 
             Profile* profile = profileManager->GetProfileByName(username);
+            std::cout << "[PACKET_SEND_CMD] profile=" << profile << std::endl;
             if (profile)
             {
                 auto followers = profile->GetFollowers();
+                std::cout << "Found " << followers.size() << " followers to send a notification to"
+                          << std::endl;
                 for (auto follower : followers)
                 {
                     std::string         body(message.payload);
@@ -490,6 +516,7 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
 
                     {
                         const std::lock_guard<std::mutex> lock(notificationQueueMutex);
+                        std::cout << "Pushing to notification queue" << std::endl;
                         notificationQueue.push(notification);
                     }
                 }

@@ -68,8 +68,8 @@ void Client::Listen()
                 const std::lock_guard<std::mutex> lock_guard(packetQueueMutex);
                 // PacketQueue.push(p);
                 PacketList.push_back(p);
+                break;
             }
-            break;
             case PACKET_ERROR:
                 // std::cout << "=====SERVER ERROR=====" << std::endl;
                 // std::cout << p.payload << std::endl;
@@ -97,7 +97,7 @@ void Client::Listen()
                 SetServerAddress(address);
                 SetServerPort(port);
                 messageHandler("New coordinator", Info);
-                std::cout << "I have a new coordinator. Updating " << p.payload << std::endl;
+                // std::cout << "I have a new coordinator. Updating " << p.payload << std::endl;
 
                 break;
             }
@@ -164,6 +164,8 @@ int Client::Connect()
         this->reorderThread = std::make_unique<std::thread>(&Client::Reorder, this);
     }
 
+    messageHandler("blah", Notification);
+
     return 0;
 }
 
@@ -188,7 +190,8 @@ int Client::Post(std::string message)
 {
     if (message.length() <= 128)
     {
-        this->SendMessageToServer(Message::MakeSendCommand(++lastSentSeqn, message, serverAddress, serverPort));
+        this->SendMessageToServer(
+            Message::MakeSendCommand(++lastSentSeqn, message, serverAddress, serverPort));
         return 0;
     }
     else
@@ -221,6 +224,9 @@ void Client::Reorder()
 {
     while (true)
     {
+        // std::stringstream ss;
+        // ss << "reordering notification buffer, n=" << PacketList.size() << std::endl;
+        // messageHandler(ss.str(), Notification);
         {
             // Create a mutex to manage the packet arrival
             const std::lock_guard<std::mutex> lock(packetQueueMutex);
@@ -240,7 +246,7 @@ void Client::Reorder()
             PacketList.clear();
         }
 
-        sleep(0.2);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }
 

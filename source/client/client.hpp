@@ -36,9 +36,6 @@ private:
     // Lista para recebimento dos packets caso necessario
     std::vector<Message::Packet> PacketList;
 
-    // Fila para ordenar os packets pelo numero de sequencia
-    std::queue<Message::Packet> PacketQueue;
-
     //
     using HandlerFn = std::function<void(std::string, enum MessageType)>;
     HandlerFn messageHandler;

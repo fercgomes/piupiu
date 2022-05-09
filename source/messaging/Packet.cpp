@@ -18,6 +18,24 @@ Packet MakeConnectCommand(uint64_t lastSeqn, std::string handle)
     return p;
 }
 
+Packet MakeConnectCommand(uint64_t lastSeqn, std::string handle, std::string proxyIp, int proxyPort)
+{
+    Packet p = {.type      = PACKET_CONNECT_CMD,
+                .seqn      = lastSeqn + 1,
+                .length    = handle.length(),
+                .timestamp = std::time(nullptr)};
+
+    memset(p.payload, 0, PACKET_MAX_PAYLOAD_LEN);
+    strcpy(p.payload, handle.c_str());
+
+    memset(p.senderIp, 0, sizeof(p.senderIp));
+    strcpy(p.senderIp, proxyIp.c_str());
+    p.senderPort = proxyPort;
+    p.proxy      = true;
+
+    return p;
+}
+
 Packet MakeDisconnectCommand(uint64_t lastSeqn, std::string handle)
 {
     Packet p = {.type      = PACKET_DISCONNECT_CMD,
@@ -69,10 +87,10 @@ Packet MakeFollowCommand(uint64_t lastSeqn, std::string handle, std::string send
 Packet MakeSendCommand(uint64_t lastSeqn, std::string handle, std::string senderIp, int senderPort)
 {
 
-    Packet p = {.type      = PACKET_SEND_CMD,
-                .seqn      = lastSeqn + 1,
-                .length    = handle.length(),
-                .timestamp = std::time(nullptr),
+    Packet p = {.type       = PACKET_SEND_CMD,
+                .seqn       = lastSeqn + 1,
+                .length     = handle.length(),
+                .timestamp  = std::time(nullptr),
                 .senderPort = senderPort};
 
     strcpy(p.senderIp, senderIp.c_str());
