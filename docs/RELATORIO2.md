@@ -6,11 +6,12 @@ Para testes, foi utilizado Debian 9 rodando na plataforma _Windows Linux Subsyst
 
 ## Algoritmo de Eleição
 
-A implementação do algoritmo de eleição (bully) foi implementada para ser executada após a detecção de um timeout no servidor principal. O programa segue disparando pacotes election enquanto tiver recebendo answers e quando atingir um timeout, sabemos quem será o novo coordinator e então atualizamos o servidor eleito como primário disparamos um package coordinator para os demais terem a identificação de IP e porta do novo servidor primário. Logo após, retransmitimos IP e porta do novo servidor primário para os demais clients para reestabelecer a comunicação normalmente.
+A implementação do algoritmo de eleição (bully) foi implementada para ser executada após a detecção de um timeout de heartbeats do servidor principal. O server primario dispara pacotes election para os secundarios. As instancias secundarias possuem um timeout para o recebimento dos pacotes. Caso alguma delas tenha esse timeout, ela iniciará um processo de eleição mandando mensagens election para os servidores com ID maior que o seu e verificando se vai receber um pacote reply. Caso não receba pacote reply, entenderá que deve se tornar o servidor primario e inicia o 'Bully'. O bully envia packets coordinator contendo ip e porta para os outros servidores e também para os clients conectados que atualizarão seu novo servidor primário.
+
 
 ## Replicação Passiva
 
-Para a replicação passiva, criamos uma nova estrutura ReplicaManager, onde armazenamos os sockets de conexão de servidores criados, bem como o gerenciamento de qual servidor é o primário, e as funções responsáveis para fazer o cast para os servidores secundários
+Para a replicação passiva, criamos uma nova estrutura ReplicaManager, onde armazenamos os sockets de conexão de servidores criados, bem como o gerenciamento de qual servidor é o primário, e as funções responsáveis para fazer o broadcast para os servidores secundários
 
 ## Principais estruturas e funções
 
@@ -72,6 +73,6 @@ A estrutura do pacote também tem número de sequência, um _payload_ e o seu ta
 
 # Desafios
 
-1. Fazer a sincronização de um novo servidor primário com os demais servers e clients.
-2. Adaptação das estruturas para que fosse possivel fazer uma replicação passiva.
-3. Fazer a interface funcionar corretamente com a aplicação.
+1. Fazer a sincronização de um novo servidor primário com os demais servers. Precisamos adaptar nossos pacotes para ter a informação do client(ip e porta) que enviava o pacote. Inicialmente faziamos o broadcast dos pacotes como definidos na etapa1 e isso gerou problemas quando as instancias secundarias se tornavam primárias.
+2. Fazer a interface utilizando ncurses funcionar corretamente com a aplicação.
+3. Tivemos problemas no algoritmo de eleição até que notamos que estavamos com diferentes threads acessando as mesmas variáveis, o que foi resolvido com um mutex.
