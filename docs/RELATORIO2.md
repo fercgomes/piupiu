@@ -11,7 +11,7 @@ A implementação do algoritmo de eleição (bully) foi implementada para ser ex
 
 ## Replicação Passiva
 
-Para a replicação passiva, criamos uma nova estrutura ReplicaManager, onde armazenamos os sockets de conexão de servidores criados, bem como o gerenciamento de qual servidor é o primário, e as funções responsáveis para fazer o broadcast para os servidores secundários
+Para a replicação passiva, criamos uma nova estrutura ReplicaManager, onde armazenamos os sockets de conexão de servidores criados, bem como o gerenciamento de qual servidor é o primário, e as funções responsáveis para fazer o broadcast para os servidores secundários. Para a validação das operações nos servidores secundários, criamos um buffer de confirmacoes, onde o servidor primario envia as replicações para os secundários e aguarda as N confirmacoes necessarias até fazer o reply para o client, garantindo que todas as operações tenham sido executadas tanto pelo servidor primário quanto pelos secundários.
 
 ## Principais estruturas e funções
 
@@ -76,3 +76,21 @@ A estrutura do pacote também tem número de sequência, um _payload_ e o seu ta
 1. Fazer a sincronização de um novo servidor primário com os demais servers. Precisamos adaptar nossos pacotes para ter a informação do client(ip e porta) que enviava o pacote. Inicialmente faziamos o broadcast dos pacotes como definidos na etapa1 e isso gerou problemas quando as instancias secundarias se tornavam primárias.
 2. Fazer a interface utilizando ncurses funcionar corretamente com a aplicação.
 3. Tivemos problemas no algoritmo de eleição até que notamos que estavamos com diferentes threads acessando as mesmas variáveis, o que foi resolvido com um mutex.
+
+
+# Comandos para inicializar os servers
+
+```
+# server primario
+PEERS=127.0.0.1:6001:s,127.0.0.1:6002:p BIND_IP=0.0.0.0 BIND_PORT=6000 PRIMARY=false ./bin/Server
+
+#server secundario
+PEERS=127.0.0.1:6000:s,127.0.0.1:6002:p BIND_IP=0.0.0.0 BIND_PORT=6001 PRIMARY=false ./bin/Server
+
+#server secundario
+PEERS=127.0.0.1:6000:s,127.0.0.1:6001:s BIND_IP=0.0.0.0 BIND_PORT=6002 PRIMARY=true ./bin/Server
+
+# Clients
+./bin/Client fernando 127.0.0.1 6002
+./bin/Client giovani 127.0.0.1 6002
+```
