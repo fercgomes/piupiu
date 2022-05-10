@@ -27,9 +27,8 @@ private:
 
     Socket _socket;
 
-    bool                            electionStarted                 = false;
-    std::time_t                     lastElectionTimestamp = std::time(nullptr);
-
+    bool        electionStarted       = false;
+    std::time_t lastElectionTimestamp = std::time(nullptr);
 
     bool                            isListening                     = true;
     std::unique_ptr<std::thread>    listeningThread                 = nullptr;
@@ -40,6 +39,7 @@ private:
     std::queue<PendingNotification> notificationQueue;
 
     std::mutex notificationQueueMutex;
+    std::mutex electionMutex;
 
     ProfileManager* profileManager;
     SessionManager* sessionManager;
@@ -66,6 +66,7 @@ public:
 
     std::string GetIpAddr();
     int         GetPort();
+    bool        electionDone = false;
 
     /* Inicia o servidor */
     void Start();

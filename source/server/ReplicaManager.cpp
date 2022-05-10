@@ -114,9 +114,13 @@ std::vector<Peer> ReplicaManager::GetSecondaryReplicas()
 Peer ReplicaManager::GetPrimaryReplica()
 {
     if (IsPrimary()) return thisPeer;
+    std::cout << "[GetPrimaryReplica]" << std::endl;
 
     for (auto peer : peers)
     {
+        std::cout << peer.address << ":" << peer.port << " "
+                  << (peer.primary ? "primary" : "secondary") << std::endl;
+
         if (peer.primary) return peer;
     }
 
@@ -169,12 +173,15 @@ void ReplicaManager::MakePrimaryReplica()
     confirmationBuffer->IncOffset();
 }
 
-std::vector<Peer> ReplicaManager::GetPeersList() { return peers; }
+std::vector<Peer>* ReplicaManager::GetPeersList() { return &peers; }
 
 void ReplicaManager::DeletePrimaryReplica()
 {
+    std::cout << "[DeletePrimaryReplica]" << std::endl;
+
     for (auto it = peers.begin(); it != peers.end(); it++)
     {
+        std::cout << it->address << ":" << it->port << " " << it->primary << std::endl;
         if (it->primary)
         {
             peers.erase(it);
@@ -249,9 +256,7 @@ int ReplicaManager::BroadcastHeartbeatToSecondaries(Message::Packet message, int
         Message::Packet newMsg = message;
         message.seqn           = lastSeqnTemp + i;
 
-        if (addr.port < currentPort) {
-            server->GetSocket()->Send(addr, message);
-        }
+        if (addr.port < currentPort) { server->GetSocket()->Send(addr, message); }
     }
 }
 

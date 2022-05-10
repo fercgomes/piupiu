@@ -34,6 +34,8 @@ typedef struct
         addr.port    = port;
         return addr;
     }
+
+    void SetAsPrimary() { primary = true; }
 } Peer;
 
 class ReplicaManager
@@ -71,5 +73,5 @@ public:
     void              DeletePrimaryReplica();
     void              MakePrimaryReplica();
 
-    std::vector<Peer> GetPeersList();
+    std::vector<Peer>* GetPeersList();
 };

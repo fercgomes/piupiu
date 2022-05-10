@@ -149,7 +149,7 @@ void Server::ElectionAlgorithmProcess()
         if (this->bindPort < i->port && i->port != this->GetPort())
         {
             // TODO make new SocketAddress
-            SocketAddress peerAddr = SocketAddress(this->bindAddress, this->bindPort);
+            SocketAddress peerAddr = SocketAddress(i->address, i->port);
             Reply(peerAddr, Message::MakeElection(++lastSeqn));
         }
     }
@@ -162,18 +162,23 @@ void Server::HeartbeatNotificationWorker()
         if (replicaManager->IsPrimary())
         {
             // sleep(4);
-            std::this_thread::sleep_for(std::chrono::seconds(4));
-            replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage(), this->GetPort());
+            const std::lock_guard<std::mutex> lock_guard(electionMutex);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            replicaManager->BroadcastHeartbeatToSecondaries(Message::MakeHeartbeatMessage(),
+                                                            this->GetPort());
         }
         else
         {
             // sleep(4);
-            std::this_thread::sleep_for(std::chrono::seconds(4));
-            if (std::time(nullptr) - lastHeartbeatTimestamp > 9 && electionStarted == false)
+            // std::this_thread::sleep_for(std::chrono::seconds(3));
+            const std::lock_guard<std::mutex> lock_guard(electionMutex);
+            if (std::time(nullptr) - lastHeartbeatTimestamp > 5 && electionStarted == false &&
+                !electionDone)
             {
                 std::cout << "Timeout from heartbeats. Starting election" << std::endl;
-                this->replicaManager->DeletePrimaryReplica();
+                // this->replicaManager->DeletePrimaryReplica();
                 this->ElectionAlgorithmProcess();
+                electionDone = true;
             }
         }
     }
@@ -187,11 +192,13 @@ void Server::ElectionTimeoutWorker()
 {
     while (true)
     {
-        if (!(replicaManager->IsPrimary() && electionStarted == true))
+        // electionStarted deveria ser false no 6000
+        const std::lock_guard<std::mutex> lock_guard(electionMutex);
+        if ((!replicaManager->IsPrimary()) && electionStarted == true)
         {
             // sleep(1);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (std::time(nullptr) - lastElectionTimestamp > 5 && electionStarted == true)
+            // std::this_thread::sleep_for(std::chrono::seconds(1));
+            if (std::time(nullptr) - lastElectionTimestamp > 5)
             {
                 std::cout << "I got no response of my election." << std::endl;
                 std::cout << "Starting bully. I'm the new coordinator" << std::endl;
@@ -285,10 +292,11 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     // printf("type=%u\nseqn=%u\ntimestamp=%u\nlen=%u\npayload=%s\n", message.type, message.seqn,
     // message.timestamp, message.length, message.payload);
 
-    if (replicaManager->IsPrimary()) {
+    if (replicaManager->IsPrimary())
+    {
         lastHeartbeatTimestamp = std::time(nullptr);
         lastElectionTimestamp  = std::time(nullptr);
-        electionStarted = false;
+        electionStarted        = false;
     }
 
     switch (message.type)
@@ -591,33 +599,41 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_REPLY:
     {
-        if(incomingAddress.port != this->GetPort()) {
+        if (incomingAddress.port != this->GetPort())
+        {
 
-            electionStarted = false;
-            lastElectionTimestamp  = std::time(nullptr);
+            electionStarted       = false;
+            lastElectionTimestamp = std::time(nullptr);
             // If a reply was received
-            // std::cerr << "I got an answer from an election process. Aborting my own election!!!"
-            //           << std::endl;
+            std::cerr << "I got an answer from an election process. Aborting my own election!!!"
+                      << std::endl;
         }
+
         break;
     }
     case PACKET_COORDINATOR:
     {
-        electionStarted = false;
-        std::vector<Peer> avaliable_peers = this->replicaManager->GetPeersList();
+        const std::lock_guard<std::mutex> lock_guard(electionMutex);
+        electionStarted                    = false;
+        electionDone                       = false;
+        lastElectionTimestamp              = std::time(nullptr);
+        std::vector<Peer>* avaliable_peers = this->replicaManager->GetPeersList();
 
-        std::cerr << host << "TSIZEEEEEE!!!" << std::endl;
-        std::cerr << host << this->replicaManager->GetPeersList().size() << std::endl;
+        // std::cerr << host << "TSIZEEEEEE!!!" << std::endl;
+        // std::cerr << host << this->replicaManager->GetPeersList().size() << std::endl;
+
         this->replicaManager->DeletePrimaryReplica();
-        std::cerr << host << this->replicaManager->GetPeersList().size() << std::endl;
+
+        // std::cerr << host << this->replicaManager->GetPeersList().size() << std::endl;
         // make new primary
-        for (auto peer = avaliable_peers.begin(); peer != avaliable_peers.end(); peer++)
+        for (auto peer = avaliable_peers->begin(); peer != avaliable_peers->end(); peer++)
         {
             Peer currentPeer = *peer;
             if (currentPeer.port == incomingAddress.port)
             {
-                currentPeer.primary = true;
-                std::cerr << host << "Updating new coordinator!!!" << std::endl;
+                std::cout << "Setting this peer as primary: " << incomingAddress.address << ":"
+                          << incomingAddress.port << std::endl;
+                peer->SetAsPrimary();
             }
         }
         // std::cerr << host << "There is a new cordinator in the house!!!" << std::endl;
@@ -626,10 +642,18 @@ void Server::MessageHandler(Message::Packet message, SocketAddress incomingAddre
     }
     case PACKET_ELECTION:
     {
+        const std::lock_guard<std::mutex> lock_guard(electionMutex);
         Reply(incomingAddress,
-            Message::MakeReply(++lastSeqn,
-                                "There is an election going on. Starting my own election"));
-        if (!electionStarted) { ElectionAlgorithmProcess(); }
+              Message::MakeReply(++lastSeqn,
+                                 "There is an election going on. Starting my own election"));
+
+        auto peers = replicaManager->GetPeersList();
+        for (auto peerIt = peers->begin(); peerIt != peers->end(); peerIt++)
+        {
+            std::cout << peerIt->port << std::endl;
+        }
+
+        // if (!electionStarted && incomingAddress.port < GetPort()) { ElectionAlgorithmProcess(); }
         break;
     }
     default:
